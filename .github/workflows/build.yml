@@ -33,7 +33,10 @@ jobs:
         run: python -m pytest -q
       - name: Validar sintaxe do Compose
         run: |
-          cp .env.example .env
+          ANALISE_VENDAS_FIREBIRD_HOST=validation \
+          ANALISE_VENDAS_FIREBIRD_DATABASE=validation \
+          ANALISE_VENDAS_FIREBIRD_USER=validation \
+          ANALISE_VENDAS_FIREBIRD_PASSWORD=validation \
           docker compose -f compose.yml config --quiet
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3

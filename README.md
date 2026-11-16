@@ -104,17 +104,22 @@ Também é possível iniciar pelo PowerShell com `scripts/iniciar_local.ps1`.
 
 ### Execução em Docker
 
-1. Copie `.env.example` para `.env` e substitua todos os valores de exemplo no servidor, sem
-   versionar o arquivo.
-2. Disponibilize `credential.json` em `credentials/` e os cadastros de usuários em
-   `config_runtime/`.
-3. Implante primeiro o `slack_combos`, que cria a rede externa `combo-audit-internal`.
-4. Execute `scripts/deploy_container.ps1`.
+O Docker executa exclusivamente no servidor Linux 153, gerenciado pelo Portainer/GitOps. O servidor
+189 é usado para desenvolvimento, testes, commit e push; ele não deve executar containers deste
+projeto.
+
+1. Publique a alteração no GitHub e aguarde o workflow gerar a imagem imutável no GHCR.
+2. No 153, mantenha arquivos persistentes em
+   `/home/administrator/Desktop/codes/Painel_analise_vendas`.
+3. Disponibilize `credential.json` em `credentials/` e os cadastros de usuários em
+   `config_runtime/` dentro dessa raiz.
+4. Configure no Portainer as variáveis de ambiente, principalmente as credenciais do Firebird.
+5. Implante primeiro o `slack_combos`, que cria a rede externa `combo-audit-internal`.
 
 O Compose publica somente o Painel em `8520`. A API de auditoria não possui mapeamento de porta e é
 acessada internamente por `http://slack-combos:8080`. Cache, temporários, relatórios e dados locais
-são montados fora da camada descartável do container. Para parar sem remover volumes ou dados, use
-`scripts/parar_container.ps1`.
+são montados fora da camada descartável do container, na raiz persistente do host 153. Operações de
+início, parada e atualização devem ser feitas pelo Portainer.
 
 No Linux, o arquivo Firebird protegido por DPAPI do Windows não pode ser usado. Por isso, o container
 recebe host, banco, usuário e senha por variáveis `ANALISE_VENDAS_FIREBIRD_*` definidas no ambiente de

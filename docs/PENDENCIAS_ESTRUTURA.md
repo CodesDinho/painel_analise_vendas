@@ -21,7 +21,7 @@ serviço à rede externa `combo-audit-internal`.
 O pipeline segue o padrão GitOps do `ti_dinho_slack`: testa, publica imagens `latest` e
 `sha-<commit>` no GHCR e atualiza no Compose a referência imutável após integração em `main`.
 
-Ainda é necessário validar o build em um host com Docker ativo, preparar `.env`, credenciais e
-usuários em runtime e homologar o acesso real ao BigQuery, Firebird e API `slack_combos`. O Docker
-Desktop não estava ativo durante a preparação local.
+Ainda é necessário validar o primeiro build no GitHub Actions, criar a stack no Portainer 153,
+preparar a raiz `/home/administrator/Desktop/codes/Painel_analise_vendas`, configurar credenciais e
+usuários em runtime e homologar o acesso real ao BigQuery, Firebird e API `slack_combos`.
 

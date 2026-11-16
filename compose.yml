@@ -1,22 +1,32 @@
 services:
   painel-analise-vendas:
-    build:
-      context: .
     image: ${PAINEL_ANALISE_VENDAS_IMAGE:-ghcr.io/codesdinho/painel-analise-vendas:latest}
     container_name: painel-analise-vendas
     restart: unless-stopped
-    env_file:
-      - .env
+    environment:
+      TZ: America/Sao_Paulo
+      ANALISE_VENDAS_COMBO_AUDIT_API_URL: ${ANALISE_VENDAS_COMBO_AUDIT_API_URL:-http://slack-combos:8080}
+      ANALISE_VENDAS_COMBO_AUDIT_API_TOKEN: ${ANALISE_VENDAS_COMBO_AUDIT_API_TOKEN:-}
+      ANALISE_VENDAS_COMBO_AUDIT_API_TIMEOUT: ${ANALISE_VENDAS_COMBO_AUDIT_API_TIMEOUT:-45}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/credentials/credential.json
+      ANALISE_VENDAS_GCP_PROJECT: ${ANALISE_VENDAS_GCP_PROJECT:-dinho-dw}
+      ANALISE_VENDAS_USUARIOS_PATH: /app/config_runtime/usuarios.json
+      ANALISE_VENDAS_USUARIOS_FATURAMENTO_PATH: /app/config_runtime/usuarios_faturamento.json
+      ANALISE_VENDAS_FIREBIRD_HOST: ${ANALISE_VENDAS_FIREBIRD_HOST:?ANALISE_VENDAS_FIREBIRD_HOST obrigatorio}
+      ANALISE_VENDAS_FIREBIRD_DATABASE: ${ANALISE_VENDAS_FIREBIRD_DATABASE:?ANALISE_VENDAS_FIREBIRD_DATABASE obrigatorio}
+      ANALISE_VENDAS_FIREBIRD_USER: ${ANALISE_VENDAS_FIREBIRD_USER:?ANALISE_VENDAS_FIREBIRD_USER obrigatorio}
+      ANALISE_VENDAS_FIREBIRD_PASSWORD: ${ANALISE_VENDAS_FIREBIRD_PASSWORD:?ANALISE_VENDAS_FIREBIRD_PASSWORD obrigatorio}
+      ANALISE_VENDAS_FIREBIRD_CHARSET: ${ANALISE_VENDAS_FIREBIRD_CHARSET:-UTF8}
     ports:
       - "${PAINEL_PORT:-8520}:8520"
     volumes:
-      - ./cache:/app/cache
-      - ./temporarios:/app/temporarios
-      - ./dados_locais:/app/dados_locais
-      - ./relatorios:/app/relatorios
-      - ./dados_operacionais:/app/dados_operacionais:ro
-      - ./credentials:/app/credentials:ro
-      - ./config_runtime:/app/config_runtime:ro
+      - ${PAINEL_HOST_ROOT:-/home/administrator/Desktop/codes/Painel_analise_vendas}/cache:/app/cache
+      - ${PAINEL_HOST_ROOT:-/home/administrator/Desktop/codes/Painel_analise_vendas}/temporarios:/app/temporarios
+      - ${PAINEL_HOST_ROOT:-/home/administrator/Desktop/codes/Painel_analise_vendas}/dados_locais:/app/dados_locais
+      - ${PAINEL_HOST_ROOT:-/home/administrator/Desktop/codes/Painel_analise_vendas}/relatorios:/app/relatorios
+      - ${PAINEL_HOST_ROOT:-/home/administrator/Desktop/codes/Painel_analise_vendas}/dados_operacionais:/app/dados_operacionais:ro
+      - ${PAINEL_HOST_ROOT:-/home/administrator/Desktop/codes/Painel_analise_vendas}/credentials:/app/credentials:ro
+      - ${PAINEL_HOST_ROOT:-/home/administrator/Desktop/codes/Painel_analise_vendas}/config_runtime:/app/config_runtime:ro
     networks:
       - default
       - combo_audit_internal
