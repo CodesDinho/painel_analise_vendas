@@ -133,6 +133,17 @@ Actions. O workflow `.github/workflows/build.yml` publica no GHCR as tags `lates
 `sha-<commit>` e atualiza o Compose para a tag imutável. O host de produção deve consumir o Compose
 pelo Git/Portainer; não se deve copiar código manualmente nem editar o container em execução.
 
+Depois de criar uma branch curta e concluir a alteração, o fluxo completo pode ser executado com:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\commit-deploy.ps1 `
+  -Message "Descreva a alteracao" `
+  -ConfirmProduction
+```
+
+O script reutiliza, sem versionar, os tokens operacionais mantidos no ambiente do `ti_dinho_slack`,
+aguarda o GitHub Actions e somente conclui quando a imagem do commit estiver saudável no servidor 153.
+
 O repositório oficial é
 [`CodesDinho/painel_analise_vendas`](https://github.com/CodesDinho/painel_analise_vendas), e as imagens
 são publicadas como `ghcr.io/codesdinho/painel-analise-vendas`.
