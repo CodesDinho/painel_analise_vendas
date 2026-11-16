@@ -65,10 +65,6 @@ from dados import (
     resumir_protecao_condicao_100,
     subtrair_meses,
 )
-from project_paths import (
-    DOCUMENTACAO_REGRAS_COMBOS, POP_LIBERACAO_COMBOS,
-    SNAPSHOT_RESTORE_ETAPAS,
-)
 
 
 TITULO_PAINEL = "Painel análise de vendas e combos"
@@ -1884,7 +1880,7 @@ def render_pagamentos_mais_usados() -> None:
         "Gerar analise de dados para etapas 1 e 2", type="primary",
         use_container_width=True,
     )
-    pasta_restore = SNAPSHOT_RESTORE_ETAPAS
+    pasta_restore = Path(__file__).resolve().parent / "restore_dados_etapas_1_2_20260831"
     restore_etapa_1 = pasta_restore / "restore_etapa_1_20260831.sql"
     restore_etapa_2 = pasta_restore / "restore_etapa_2_20260831.sql"
     if restore_etapa_1.exists() and restore_etapa_2.exists():
@@ -2289,7 +2285,7 @@ def render_pagamentos_mais_usados() -> None:
 
 def render_documentacao() -> None:
     st.title("Documentação das análises")
-    documento_word = DOCUMENTACAO_REGRAS_COMBOS
+    documento_word = Path(__file__).resolve().parent / "DOCUMENTACAO_REGRAS_COMBOS.docx"
     if documento_word.exists():
         st.download_button(
             "Baixar documentação de regras de combos (Word)",
@@ -2303,7 +2299,7 @@ def render_documentacao() -> None:
         st.warning(
             "O documento Word de regras de combos não está disponível neste servidor."
         )
-    documento_pop = POP_LIBERACAO_COMBOS
+    documento_pop = Path(__file__).resolve().parent / "POP_Liberacao_de_Combos_SGQ.docx"
     if documento_pop.exists():
         st.download_button(
             "Baixar POP Liberação de Combos — SGQ (Word)",
@@ -2607,55 +2603,6 @@ def render_insercao_dinamica() -> None:
         "permitida em Dormente positivação e Dormente volume; a exclusão também "
         "permanece disponível."
     )
-    st.markdown("**Exemplos e fluxos de cada operação**")
-    with st.expander("Inserir combo sem cotas"):
-        st.markdown(
-            """
-**Exemplo:** vincular ao combo selecionado os clientes encontrados pelos filtros, sem liberar cotas para eles. A operação cria somente os registros ausentes em `COMBOCLIFOR`.
-
-1. Selecione os filtros que identificam os clientes.
-2. Selecione o combo desejado.
-3. Escolha **Inserir combo sem cotas**.
-4. Clique em **Preparar operação** e confira os clientes e vínculos da prévia.
-5. Se estiver tudo correto, clique em **Confirmar inserir combo sem cotas**.
-"""
-        )
-    with st.expander("Inserir combo com cotas"):
-        st.markdown(
-            """
-**Exemplo:** vincular ao combo selecionado os clientes encontrados pelos filtros e também liberá-los nas cotas vigentes de todas as filiais ativas do combo.
-
-1. Selecione os filtros que identificam os clientes.
-2. Selecione o combo e escolha **Inserir combo com cotas**.
-3. Informe a quantidade de cotas por cliente, normalmente **1**.
-4. Clique em **Preparar operação** e confira os clientes, vínculos, cotas e situações da prévia.
-5. Se estiver tudo correto, clique em **Confirmar inserir combo com cotas**.
-"""
-        )
-    with st.expander("Inserir somente cotas", expanded=True):
-        st.markdown(
-            """
-**Exemplo — combo 240035686:** cadastrar as cotas 204, 207, 210 e 213, com quantidade 1, para os clientes que já pertencem ao combo. Os códigos das cotas são identificados automaticamente pelas filiais ativas; não é necessário informá-los nem selecionar clientes.
-
-1. Selecione o combo **240035686**.
-2. Escolha **Inserir somente cotas**.
-3. Informe a quantidade de cotas por cliente, neste exemplo **1**.
-4. Clique em **Preparar operação** e confira as cotas e a situação de cada uma na prévia.
-5. Se estiver tudo correto, clique em **Confirmar inserir somente cotas**.
-"""
-        )
-    with st.expander("Excluir"):
-        st.markdown(
-            """
-**Exemplo:** remover do combo selecionado somente os clientes encontrados pelos filtros que já possuem vínculo. Esta ação executa a exclusão em `COMBOCLIFOR`; ela não executa exclusão direta em `ITEMCOTACOMBOCLIENTE`.
-
-1. Selecione os filtros que identificam os clientes.
-2. Selecione o combo desejado.
-3. Escolha **Excluir**.
-4. Clique em **Preparar operação** e confira cuidadosamente os vínculos da prévia.
-5. Se estiver tudo correto, clique em **Confirmar excluir**.
-"""
-        )
     if data_fim < data_inicio:
         st.error("A data fim não pode ser menor que a data início.")
         return
@@ -2775,64 +2722,7 @@ def render_insercao_dinamica() -> None:
               len(cotas_afetadas) if acao_com_cotas else len(afetados))
     if acao_com_cotas and not plano["filiais_cotas"].empty:
         st.markdown("**Filiais ativas e cotas dos combos**")
-        filiais_cotas_exibicao = plano["filiais_cotas"].copy()
-        contagem_novas = pd.DataFrame(
-            cotas_afetadas, columns=["combo", "cota", "cliente"]
-        )
-        cotas_ja_existentes = plano.get("cotas_ja_existentes", [])
-        contagem_existentes = pd.DataFrame(
-            cotas_ja_existentes, columns=["combo", "cota", "cliente"]
-        )
-        if not contagem_novas.empty:
-            contagem_novas = (
-                contagem_novas.groupby(["combo", "cota"]).size()
-                .rename("registros_a_inserir").reset_index()
-            )
-            filiais_cotas_exibicao = filiais_cotas_exibicao.merge(
-                contagem_novas, on=["combo", "cota"], how="left"
-            )
-        else:
-            filiais_cotas_exibicao["registros_a_inserir"] = 0
-        if not contagem_existentes.empty:
-            contagem_existentes = (
-                contagem_existentes.groupby(["combo", "cota"]).size()
-                .rename("registros_ja_existentes").reset_index()
-            )
-            filiais_cotas_exibicao = filiais_cotas_exibicao.merge(
-                contagem_existentes, on=["combo", "cota"], how="left"
-            )
-        else:
-            filiais_cotas_exibicao["registros_ja_existentes"] = 0
-        filiais_cotas_exibicao[[
-            "registros_a_inserir", "registros_ja_existentes"
-        ]] = filiais_cotas_exibicao[[
-            "registros_a_inserir", "registros_ja_existentes"
-        ]].fillna(0).astype(int)
-        filiais_cotas_exibicao["situação"] = filiais_cotas_exibicao.apply(
-            lambda linha: (
-                "Inserção parcial"
-                if linha.registros_a_inserir and linha.registros_ja_existentes
-                else "Será inserida"
-                if linha.registros_a_inserir
-                else "Já existente"
-            ),
-            axis=1,
-        )
-        st.dataframe(
-            filiais_cotas_exibicao,
-            hide_index=True,
-            use_container_width=True,
-            column_config={
-                "combo": "Combo",
-                "filial_codigo": "Filial",
-                "filial_nome": "Nome da filial",
-                "cota": "Cota",
-                "cota_nome": "Nome da cota",
-                "registros_a_inserir": "Registros a inserir",
-                "registros_ja_existentes": "Registros já existentes",
-                "situação": "Situação",
-            },
-        )
+        st.dataframe(plano["filiais_cotas"], hide_index=True, use_container_width=True)
     st.dataframe(clientes_df, use_container_width=True, hide_index=True, height=320)
     if not afetados and not cotas_afetadas:
         st.info("Nenhum vínculo precisa ser alterado com os critérios informados.")
@@ -3418,6 +3308,13 @@ else:
 
 
 ##para compilar -> python -m streamlit run main.py --server.port 8520
+
+
+##PARA DEPLOY
+##powershell -ExecutionPolicy Bypass -File .\scripts\commit-deploy.ps1 `
+##  -Message "Adiciona automacao de commit e deploy do painel" `
+##  -ConfirmProduction
+
 
 
 # REFERENCIA OPERACIONAL - INSERIR COTAS EM COMBO EXISTENTE
