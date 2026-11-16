@@ -1,0 +1,389 @@
+PLANO DE INTEGRACAO - VALIDACAO DE COMBOS NO SLACK E PAINEL
+
+Data: 16/11/2026
+
+1. OBJETIVO
+
+Criar uma validacao central de combos sem duplicar regras entre os projetos.
+
+O projeto slack_combos deve ser a fonte principal das regras de negocio, consultas,
+aprovacoes e alteracoes no ERP.
+
+O projeto Painel_analise_vendas deve receber um novo menu chamado Validador de
+combos atuais. Esse menu apresentara uma visao consolidada das auditorias,
+permitira filtros, conferencias e exportacao, sem recriar as regras internamente.
+
+Decisao definitiva:
+
+- As regras e a execucao da auditoria ficam no slack_combos.
+- O menu visual Validador de combos atuais fica no Painel_analise_vendas.
+- A integracao sera feita por uma API interna somente leitura.
+- A implementacao do painel deve comecar somente depois da homologacao do contrato
+  real da API do slack_combos.
+
+
+2. DIVISAO DE RESPONSABILIDADES
+
+slack_combos:
+
+- Receber solicitacoes de criacao ou alteracao de combos.
+- Consultar o ERP e validar os dados antes da aprovacao.
+- Concentrar as regras comerciais e cadastrais.
+- Classificar os resultados em ERRO, CONFLITO, ALERTA ou INFORMATIVO.
+- Solicitar aprovacao quando houver alteracao no ERP.
+- Executar alteracoes de forma transacional, com rollback em caso de erro.
+- Registrar solicitante, aprovador, data, decisao e resultado.
+- Disponibilizar o resultado da auditoria em formato estruturado para o painel.
+
+Painel_analise_vendas:
+
+- Exibir a auditoria consolidada de todos os combos.
+- Permitir pesquisa por combo, produto, filial, tipo e severidade.
+- Mostrar os dados que originaram cada alerta.
+- Exportar a auditoria para Excel.
+- Continuar responsável pelas analises de vendas, clientes dormentes, inclusao em
+  combos existentes e cotas.
+- Nao duplicar as regras do slack_combos.
+- Nao executar criacao ou correcao automatica de combo sem passar pelo fluxo de
+  aprovacao do Slack.
+
+
+3. LOCAL RECOMENDADO PARA A IMPLEMENTACAO
+
+Projeto oficial:
+
+CODES/_GIT/TI/3_Slack/ti_dinho_slack/slack_combos
+
+Criar, preferencialmente, os seguintes modulos:
+
+- combo_repository.py
+  Responsavel apenas pelas consultas ao Firebird e montagem dos dados do combo.
+
+- combo_rules.py
+  Regras puras, sem dependencia de Slack, Streamlit ou interface.
+
+- combo_audit_service.py
+  Executa as consultas, aplica as regras e devolve um resultado estruturado.
+
+Os modulos existentes analisar_solicitacao_combo.py, combo_service.py e
+minimum_price_service.py devem ser reutilizados ou refatorados. Nao copiar esses
+arquivos para o Painel_analise_vendas.
+
+
+4. FORMATO PADRAO DO RESULTADO
+
+Cada validacao deve retornar dados estruturados semelhantes a:
+
+{
+  "combo": 240034782,
+  "nome": "SALTON GIN THEROS 12+1",
+  "status": "ERRO",
+  "regra": "PRECO_COMBO_ACIMA_TABELA",
+  "mensagem": "Preco do combo acima do preco permitido para a tabela.",
+  "produto": 12345,
+  "filial": 4,
+  "valor_combo": 26.77,
+  "valor_referencia": 25.90,
+  "evidencias": {},
+  "data_analise": "2026-11-16"
+}
+
+O texto apresentado no Slack e no painel deve ser gerado a partir desse resultado.
+Nao armazenar apenas uma mensagem pronta, pois o painel precisa filtrar e exportar
+os campos individualmente.
+
+
+5. NIVEIS DE SEVERIDADE
+
+ERRO:
+
+- Situacao que certamente impede a gravacao ou produz cadastro incorreto.
+- Exemplo: preco abaixo do piso ou acima do limite aceito pelo aplicativo.
+
+CONFLITO:
+
+- Dois ou mais combos podem disputar a mesma venda.
+- Exemplo: mesmo produto, mesma faixa de quantidade, mesma filial e vigencias
+  sobrepostas.
+
+ALERTA:
+
+- Cadastro pode funcionar, mas existe risco operacional.
+- Exemplo: brinde unico sem produto substituto ou quantidade incompatível com a
+  caixa de carregamento.
+
+INFORMATIVO:
+
+- Situacao valida que deve ser apresentada para conhecimento.
+- Exemplo: nome extenso que ainda cabe no campo de observacao.
+
+
+6. REGRAS INICIAIS SOLICITADAS
+
+6.1. Preco do combo versus tabela de preco
+
+- Consultar ITEMGRUPOCOMBO.VALORVENDA.
+- Identificar a tabela de preco aplicavel por filial, cliente ou regra comercial.
+- Consultar ITEMTABELAPRECO.VALORMINIMO e ITEMTABELAPRECO.VALORVENDA.
+- Informar combo, produto, filial, tabela, valor do combo, valor minimo e valor de
+  venda.
+- Nao corrigir automaticamente.
+- Se houver solicitacao de correcao, usar o fluxo de aprovacao existente.
+
+Caso de aceite:
+
+- Combo 240034782.
+- Preco do combo: 26,77.
+- Preco informado como referencia: 25,90.
+- O resultado deve explicar qual regra provoca o "Save negativo" ou indicar que a
+  causa ainda depende de reproducao no aplicativo.
+
+
+6.2. Combos ativos sobrepostos
+
+Comparar combos considerando, no minimo:
+
+- Produto.
+- Faixa ou quantidade exigida.
+- Tipo de combo: desconto ou brinde.
+- Filiais.
+- Clientes ou publico liberado.
+- Vendedores bloqueados.
+- Data inicial e final.
+
+Nao considerar conflito apenas porque dois combos possuem o mesmo produto. Deve
+existir intersecao real de quantidade, vigencia e publico.
+
+Casos de aceite:
+
+- 240031841 versus 240031867 - Red Horse.
+- 240035662 versus 240035672 - VCT Black 12+1.
+- 240035663 versus 240035670 - VCT Black 12+1.
+- 240035537 versus 240035441 - Baly lata, desconto versus brinde.
+
+
+6.3. Quantidade versus caixa de carregamento
+
+- Consultar PRODUTO.QTDECARREGAMENTO.
+- Comparar com GRUPOCOMBO.QTDE e ITEMGRUPOCOMBO.QTDEINICIO/QTDEFIM.
+- Gerar ALERTA quando a quantidade solicitada nao for compativel com o multiplo de
+  carregamento.
+- Antes de transformar o alerta em bloqueio, confirmar se o TOP permite venda
+  fracionada para o produto.
+
+Caso de aceite:
+
+- Combo 240032879.
+- Produtos 591 e 593.
+- Grupo pede 12 e carregamento cadastrado e 24.
+
+
+6.4. Brinde unico sem alternativa
+
+- Identificar grupos GRUPOCOMBO.BONIFICADO = 'S'.
+- Contar os produtos disponiveis no grupo de brinde.
+- Consultar estoque por filial quando essa informacao estiver disponivel.
+- Gerar ALERTA quando houver apenas um SKU de brinde.
+- Elevar a severidade quando o unico SKU estiver sem estoque nas filiais do combo.
+
+Caso de aceite:
+
+- Combo 240035106.
+- Produto de brinde 9965 - Queijo.
+
+
+6.5. Preco do combo abaixo do piso
+
+- Comparar ITEMGRUPOCOMBO.VALORVENDA com o piso por tabela e filial.
+- Informar exatamente a origem do piso utilizado.
+- Nao misturar ESTOQUE.VALORMINIMO com ITEMTABELAPRECO.VALORMINIMO sem documentar
+  qual deles o aplicativo utiliza.
+
+Caso de aceite:
+
+- Combo 240032677.
+- Preco do combo: 8,59.
+- Piso informado: 8,99.
+
+
+6.6. Combo incorreto aplicado automaticamente
+
+- Consultar todos os combos vigentes que contenham o produto.
+- Comparar faixa, filial, cliente, vendedor e prioridade.
+- Informar quais combos podem ser acionados para a mesma quantidade.
+- Quando a causa depender da ordem interna do aplicativo, classificar como
+  PENDENTE_REPRODUCAO_APP e nao inventar uma causa.
+
+Caso de aceite:
+
+- Produto 10128 - Velho Barreiro Limao.
+- Quantidade 6.
+- Combo aplicado: "6+6 St Pierre Zero Pink Lemon".
+- Erro relatado: Save negativo, aba 5, linha [div] 686.
+
+
+6.7. Nome do combo enviado para observacao
+
+- Consultar o tamanho real do campo de observacao do pedido/bonificacao.
+- Confirmar se o aplicativo adiciona prefixo ou sufixo ao nome.
+- Validar tamanho, caracteres e eventual truncamento.
+- Informar o tamanho atual e o limite disponivel.
+
+Caso de aceite:
+
+- Nome: "PRESIDENTE DZ13 ** ATE 10% DA VENDA DO CLIENTE M PR".
+
+
+7. COMANDO SUGERIDO NO SLACK
+
+Auditoria individual:
+
+/auditar-combo 240034782
+
+Auditoria de varios combos:
+
+/auditar-combo 240034782, 240032879, 240035106
+
+O comando deve ser somente leitura. Qualquer botao de correcao deve abrir uma nova
+solicitacao no fluxo de aprovacao já existente.
+
+
+8. INTEGRACAO COM O PAINEL
+
+A integracao oficial deve usar uma API interna somente leitura disponibilizada pelo
+slack_combos.
+
+Endpoints iniciais sugeridos:
+
+- GET /api/combo-audit
+  Retorna a auditoria consolidada dos combos atuais.
+
+- GET /api/combo-audit/{codigo_combo}
+  Retorna a auditoria detalhada de um combo.
+
+- GET /api/combo-rules/version
+  Retorna a versao das regras, data da publicacao e data/hora da ultima auditoria.
+
+Requisitos do contrato:
+
+- Resposta JSON estruturada e versionada.
+- Identificacao da versao do schema da resposta.
+- Paginacao ou filtros para auditorias extensas.
+- Timeout e mensagens de erro previsiveis.
+- Autenticacao interna entre os servicos.
+- Nenhum endpoint de correcao ou gravacao para o painel.
+- O painel solicita a auditoria por combo ou a auditoria geral.
+- A resposta usa o formato estruturado definido neste documento.
+- O painel nao acessa funcoes internas do bot por caminho de arquivos.
+- Se a API estiver indisponivel, o painel pode mostrar a ultima resposta armazenada
+  em cache, identificando claramente que os dados estao desatualizados.
+
+Nao importar arquivos diretamente entre os dois checkouts. Isso funciona apenas no
+ambiente local e quebra o isolamento dos containers e do deploy.
+
+
+9. TELA SUGERIDA NESTE PAINEL
+
+Nome da tela:
+
+Auditoria de combos
+
+Indicadores:
+
+- Combos analisados.
+- Erros.
+- Conflitos.
+- Alertas.
+- Sem pendencias.
+
+Filtros:
+
+- Codigo ou nome do combo.
+- Produto.
+- Filial.
+- Tipo de combo.
+- Regra.
+- Severidade.
+- Vigente ou inativo.
+
+Tabela:
+
+- Severidade.
+- Combo.
+- Nome.
+- Regra.
+- Produto.
+- Filial.
+- Valor do combo.
+- Valor de referencia.
+- Mensagem.
+- Data da auditoria.
+
+A tela deve ser inicialmente somente leitura e permitir exportacao para Excel.
+
+
+10. FONTE DE VERDADE
+
+A documentacao normativa deve permanecer em:
+
+slack_combos/Documentacao/REGRAS_LIBERACAO_COMBOS.md
+
+Este TXT e um plano de implementacao e repasse. Ele nao substitui a documentacao
+normativa. Depois de homologar cada regra, atualizar o documento oficial e os testes
+do slack_combos.
+
+
+11. TESTES MINIMOS
+
+- Teste unitario para cada uma das sete regras.
+- Teste de combo sem problema.
+- Teste de vigencias que nao se sobrepoem.
+- Teste de mesmo produto com filiais diferentes.
+- Teste de mesmo produto com publicos diferentes.
+- Teste de tabela de preco ausente.
+- Teste de estoque indisponivel.
+- Teste de falha de conexao sem liberar correcao.
+- Teste garantindo que auditoria somente leitura nao executa INSERT, UPDATE ou DELETE.
+- Teste transacional para qualquer correcao aprovada.
+
+
+12. ORDEM RECOMENDADA
+
+1. Consolidar consultas e modelos em combo_repository.py.
+2. Implementar as regras de preco e sobreposicao.
+3. Implementar embalagem, brinde e nome/observacao.
+4. Criar /auditar-combo no Slack.
+5. Homologar com Gustavo usando os casos deste documento.
+6. Atualizar REGRAS_LIBERACAO_COMBOS.md e testes.
+7. Implementar, testar e homologar a API interna somente leitura.
+8. Registrar o contrato real da API com exemplos de resposta e erros.
+9. Somente depois da homologacao da API, criar a tela de auditoria neste painel.
+10. Validar no painel a versao das regras e o comportamento quando a API estiver
+    indisponivel.
+
+
+13. REGRAS DE SEGURANCA
+
+- A auditoria deve ser somente leitura.
+- Nenhuma correcao automatica sem aprovacao.
+- Nao permitir que aprovacao ignore bloqueio absoluto de combo dormente.
+- Revalidar dados dentro da transacao antes de gravar.
+- Registrar valores anteriores e novos.
+- Fazer rollback integral em qualquer falha.
+- Nao registrar senhas, tokens ou configuracoes sensiveis.
+- Seguir o AGENTS.md do repositorio ti_dinho_slack, incluindo branch, testes,
+  documentacao, commit, pipeline e acompanhamento do deploy.
+
+
+14. DECISAO ARQUITETURAL
+
+- Regras, consultas de auditoria e operacao ficam no slack_combos.
+- O menu Validador de combos atuais e a visualizacao consolidada ficam no
+  Painel_analise_vendas.
+- O Slack e o unico caminho para aprovacao e correcao.
+- O painel nao duplica regras e nao corrige diretamente.
+- A integracao deve usar a API interna somente leitura e resultado estruturado,
+  nunca importacao por caminho local.
+- A implementacao neste painel deve esperar o contrato da API ser implementado,
+  testado e homologado no slack_combos.
+
