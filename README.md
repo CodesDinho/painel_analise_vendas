@@ -80,8 +80,8 @@ Contrato esperado: `GET /api/combo-audit?page=1&page_size=25`, `GET /api/combo-a
 `GET /api/combo-rules/version`, usando schema `1.0`. Correções devem seguir pelo comando
 `/combos-editar` no Slack.
 
-Para repassar o uso a outra pessoa ou aplicação, consulte o
-[`Guia para Everson — auditoria e edição de combos`](docs/integracao/GUIA_EVERSON_AUDITORIA_EDICAO_COMBOS.md),
+Para repassar o uso à Diretoria ou a outra aplicação, consulte o
+[`pacote de auditoria e edição de combos`](entrega_diretoria/leia_me.md),
 que descreve acesso, segurança, exemplos, testes e o limite intencional entre API de leitura e edição
 via Slack.
 

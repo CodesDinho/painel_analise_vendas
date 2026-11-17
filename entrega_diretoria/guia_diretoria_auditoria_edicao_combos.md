@@ -1,4 +1,4 @@
-# Guia para Everson — auditoria e edição de combos
+# Guia para a Diretoria — auditoria e edição de combos
 
 Atualização: 17/11/2026  
 Ambiente: produção, servidor 153  
@@ -22,13 +22,13 @@ escrita paralela, chamar o ERP diretamente nem personificar um usuário do Slack
 
 ## 2. Para quem é cada acesso
 
-### Everson como usuário
+### Diretoria e usuários autorizados
 
 - Para consultar: usar o Painel ou `/combos-auditar` no Slack.
 - Para corrigir: usar `/combos-editar` no Slack.
 - Não precisa receber o token técnico da API para usar esses dois comandos.
 
-### Aplicação mantida pelo Everson
+### Aplicação consumidora
 
 Uma aplicação pode consumir a API de auditoria se:
 
@@ -68,7 +68,7 @@ Exemplo mínimo de Compose:
 
 ```yaml
 services:
-  aplicacao-everson:
+  aplicacao-consumidora:
     image: imagem-da-aplicacao
     environment:
       COMBO_AUDIT_API_URL: http://slack-combos:8080
@@ -334,16 +334,16 @@ Edição pode gravar em produção. Fazer somente com caso previamente autorizad
 
 Não usar dados fictícios aleatórios em produção e não testar edição chamando diretamente o Firebird.
 
-## 11. Checklist de entrega ao Everson
+## 11. Checklist de entrega à Diretoria
 
-- [ ] Everson recebeu este documento.
+- [ ] A Diretoria e os responsáveis receberam este documento.
 - [ ] Foi definido se ele usará Slack, aplicação integrada ou ambos.
 - [ ] A aplicação consumidora está na rede `combo-audit-internal`.
 - [ ] O token foi cadastrado diretamente no Portainer, sem envio por mensagem.
 - [ ] O endpoint de versão retornou HTTP 200 e schema `1.0`.
 - [ ] Uma auditoria individual foi validada.
 - [ ] Ficou registrado que não existe API HTTP de edição.
-- [ ] Everson possui acesso ao comando `/combos-editar` no Slack, se necessário.
+- [ ] Os usuários autorizados possuem acesso ao comando `/combos-editar` no Slack, se necessário.
 - [ ] O primeiro caso de edição foi escolhido e autorizado antes da execução.
 
 ## 12. Informações para suporte
