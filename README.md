@@ -134,6 +134,16 @@ Actions. O workflow `.github/workflows/build.yml` publica no GHCR as tags `lates
 `sha-<commit>` e atualiza o Compose para a tag imutável. O host de produção deve consumir o Compose
 pelo Git/Portainer; não se deve copiar código manualmente nem editar o container em execução.
 
+Para o uso diário, depois de editar e salvar os arquivos, basta executar na raiz:
+
+```powershell
+.\deploy.ps1
+```
+
+O comando pede a mensagem do commit, cria uma branch automaticamente quando necessário e executa o
+fluxo completo de testes, commit, GitHub Actions e Portainer. Ele recusa o deploy quando não encontra
+alterações salvas.
+
 Depois de criar uma branch curta e concluir a alteração, o fluxo completo pode ser executado com:
 
 ```powershell
