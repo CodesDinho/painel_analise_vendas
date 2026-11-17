@@ -12,11 +12,7 @@ services:
       ANALISE_VENDAS_GCP_PROJECT: ${ANALISE_VENDAS_GCP_PROJECT:-dinho-dw}
       ANALISE_VENDAS_USUARIOS_PATH: /app/config_runtime/usuarios.json
       ANALISE_VENDAS_USUARIOS_FATURAMENTO_PATH: /app/config_runtime/usuarios_faturamento.json
-      ANALISE_VENDAS_FIREBIRD_HOST: ${ANALISE_VENDAS_FIREBIRD_HOST:?ANALISE_VENDAS_FIREBIRD_HOST obrigatorio}
-      ANALISE_VENDAS_FIREBIRD_DATABASE: ${ANALISE_VENDAS_FIREBIRD_DATABASE:?ANALISE_VENDAS_FIREBIRD_DATABASE obrigatorio}
-      ANALISE_VENDAS_FIREBIRD_USER: ${ANALISE_VENDAS_FIREBIRD_USER:?ANALISE_VENDAS_FIREBIRD_USER obrigatorio}
-      ANALISE_VENDAS_FIREBIRD_PASSWORD: ${ANALISE_VENDAS_FIREBIRD_PASSWORD:?ANALISE_VENDAS_FIREBIRD_PASSWORD obrigatorio}
-      ANALISE_VENDAS_FIREBIRD_CHARSET: ${ANALISE_VENDAS_FIREBIRD_CHARSET:-UTF8}
+      ANALISE_VENDAS_CONFIG_FIREBIRD: /run/secrets/combo_config.ini
     ports:
       - "${PAINEL_PORT:-8520}:8520"
     volumes:
@@ -27,6 +23,7 @@ services:
       - ${PAINEL_HOST_ROOT:-/home/administrator/Desktop/codes/Painel_analise_vendas}/dados_operacionais:/app/dados_operacionais:ro
       - ${PAINEL_HOST_ROOT:-/home/administrator/Desktop/codes/Painel_analise_vendas}/credentials:/app/credentials:ro
       - ${PAINEL_HOST_ROOT:-/home/administrator/Desktop/codes/Painel_analise_vendas}/config_runtime:/app/config_runtime:ro
+      - /home/administrator/Desktop/codes/ti_dinho_slack/secrets/combo_config.ini:/run/secrets/combo_config.ini:ro
     networks:
       - default
       - combo_audit_internal

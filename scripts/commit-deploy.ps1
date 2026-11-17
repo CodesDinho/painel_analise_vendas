@@ -53,6 +53,7 @@ function Resolve-RepositoryFile([string]$RepositoryPath, [string]$ConfiguredPath
 function Assert-SafeStage {
     $staged = @(& git diff --cached --name-only --diff-filter=ACMR)
     $blocked = @($staged | Where-Object {
+        $_ -notmatch '(^|/)\.env\.example$' -and
         $_ -match '(^|/)(\.env($|\.)|secrets\.toml$|credential.*\.json$|usuarios(_faturamento)?\.json$|.*\.(pfx|p12|pem|key)$)'
     })
     if ($blocked.Count) {
@@ -97,7 +98,7 @@ function Wait-GitHubActions([hashtable]$Settings, [string]$Commit, [string]$Repo
 }
 
 function Wait-Portainer([hashtable]$Settings, [string]$Commit, [string]$RepositoryPath) {
-    Write-Stage 'portainer' "Aguardando $($Settings.ContainerName) no servidor 153"
+    Write-Stage 'portainer' "Atualizando $($Settings.ContainerName) no servidor 153"
     $apiKey = [Environment]::GetEnvironmentVariable([string]$Settings.ApiKeyEnvironmentVariable)
     if (-not $apiKey) {
         $keyPath = Resolve-RepositoryFile $RepositoryPath ([string]$Settings.ApiKeyDotEnvPath)
@@ -106,12 +107,37 @@ function Wait-Portainer([hashtable]$Settings, [string]$Commit, [string]$Reposito
     if (-not $apiKey) { throw 'PORTAINER_ACCESS_TOKEN nao encontrado.' }
     $base = ([string]$Settings.Url).TrimEnd('/')
     $expected = ([string]$Settings.ImageTemplate).Replace('{commit}', $Commit)
+    $headers = @{ 'X-API-Key' = $apiKey }
+
+    # A stack nao depende de polling GitOps: solicita explicitamente o mesmo
+    # Pull and redeploy disponivel na interface do Portainer e preserva todas
+    # as variaveis ja cadastradas, inclusive segredos.
+    $stacks = Invoke-RestMethod -Method Get -Uri "$base/api/stacks" -Headers $headers
+    $stack = $stacks |
+        Where-Object { $_.Name -eq [string]$Settings.StackName } |
+        Select-Object -First 1
+    if (-not $stack) { throw "Stack $($Settings.StackName) nao encontrada no Portainer." }
+    $stack = Invoke-RestMethod -Method Get -Uri "$base/api/stacks/$($stack.Id)" -Headers $headers
+    $redeployBody = @{
+        env = $stack.Env
+        pullImage = $true
+        prune = $false
+        repositoryReferenceName = $stack.GitConfig.ReferenceName
+        repositoryAuthentication = $stack.GitConfig.Authentication
+    } | ConvertTo-Json -Depth 8
+    $redeployUri = "$base/api/stacks/$($stack.Id)/git/redeploy?endpointId=$($Settings.EndpointId)"
+    Invoke-RestMethod -Method Put -Uri $redeployUri -Headers @{
+        'X-API-Key' = $apiKey
+        'Content-Type' = 'application/json'
+    } -Body $redeployBody | Out-Null
+    Write-Stage 'portainer' "Redeploy solicitado para a stack $($stack.Id)"
+
     $startedAt = Get-Date
     $deadline = $startedAt.AddSeconds([int]$Settings.TimeoutSeconds)
     do {
         try {
             $uri = "$base/api/endpoints/$($Settings.EndpointId)/docker/containers/json?all=true"
-            $containers = Invoke-RestMethod -Method Get -Uri $uri -Headers @{ 'X-API-Key' = $apiKey }
+            $containers = Invoke-RestMethod -Method Get -Uri $uri -Headers $headers
             $container = $containers |
                 Where-Object { $_.Names -contains "/$($Settings.ContainerName)" } |
                 Select-Object -First 1

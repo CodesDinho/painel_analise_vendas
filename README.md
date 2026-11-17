@@ -121,9 +121,10 @@ acessada internamente por `http://slack-combos:8080`. Cache, temporários, relat
 são montados fora da camada descartável do container, na raiz persistente do host 153. Operações de
 início, parada e atualização devem ser feitas pelo Portainer.
 
-No Linux, o arquivo Firebird protegido por DPAPI do Windows não pode ser usado. Por isso, o container
-recebe host, banco, usuário e senha por variáveis `ANALISE_VENDAS_FIREBIRD_*` definidas no ambiente de
-implantação. Esses valores não devem ser registrados no Git, na imagem ou nos logs.
+No Linux, o arquivo Firebird protegido por DPAPI do Windows não pode ser usado. O container monta,
+somente para leitura, o mesmo `combo_config.ini` operacional mantido fora do Git para o
+`slack_combos`, em `/run/secrets/combo_config.ini`. Assim as credenciais não são duplicadas no
+Portainer, na imagem ou nos logs.
 
 ### Git e entrega da imagem
 

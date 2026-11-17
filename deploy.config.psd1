@@ -15,11 +15,12 @@
     Portainer = @{
         Url = 'http://10.1.1.153:9090'
         EndpointId = 3
+        StackName = 'painel-analise-vendas'
         ApiKeyEnvironmentVariable = 'PORTAINER_ACCESS_TOKEN'
         ApiKeyDotEnvPath = '../../TI/3_Slack/ti_dinho_slack/slack_stack/.env.portainer'
         ApiKeyDotEnvName = 'PORTAINER_ACCESS_TOKEN'
         ContainerName = 'painel-analise-vendas'
         ImageTemplate = 'ghcr.io/codesdinho/painel-analise-vendas:sha-{commit}'
-        TimeoutSeconds = 600
+        TimeoutSeconds = 900
     }
 }

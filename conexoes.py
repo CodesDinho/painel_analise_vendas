@@ -20,8 +20,18 @@ def localizar_credencial() -> Path | None:
         BASE_DIR.parent / "Painel_vendas" / "config" / "credentials" / "credential.json",
         BASE_DIR.parent / "credentials" / "credential.json",
         BASE_DIR.parent.parent / "rel_controladoria" / "credentials" / "credential.json",
-        BASE_DIR.parents[2] / "_OLDS" / "rel_controladoria" / "credentials" / "credential.json",
     ]
+    # No container BASE_DIR e /app e possui poucos ancestrais. O fallback legado
+    # abaixo existe apenas no checkout Windows e nao pode indexar parents[2]
+    # incondicionalmente.
+    if len(BASE_DIR.parents) > 2:
+        candidatos.append(
+            BASE_DIR.parents[2]
+            / "_OLDS"
+            / "rel_controladoria"
+            / "credentials"
+            / "credential.json"
+        )
     return next((Path(p) for p in candidatos if p and Path(p).exists()), None)
 
 
