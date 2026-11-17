@@ -172,6 +172,7 @@ try {
     if (-not $branch -or $branch -eq $settings.ProductionBranch) {
         throw 'Execute a partir de uma branch curta, nunca diretamente na main.'
     }
+    $startingCommit = (& git rev-parse HEAD).Trim()
 
     if (-not $SkipTests) {
         Write-Stage 'testes' 'Executando validacoes obrigatorias'
@@ -186,7 +187,14 @@ try {
         Invoke-Native git @('add', '--all')
         Assert-SafeStage
         $staged = @(& git diff --cached --name-only)
-        if ($staged.Count) { Invoke-Native git @('commit', '-m', $Message) }
+        if (-not $staged.Count) {
+            throw 'Nenhuma alteracao versionavel encontrada. Faca a alteracao antes de executar o commit-deploy.'
+        }
+        Invoke-Native git @('commit', '-m', $Message)
+        $createdCommit = (& git rev-parse HEAD).Trim()
+        if ($createdCommit -eq $startingCommit) {
+            throw 'O Git nao criou um novo commit; deploy cancelado antes do pipeline.'
+        }
         Write-Stage 'push' "Enviando $branch"
         Invoke-Native git @('push', '--set-upstream', $settings.Remote, $branch)
     }
@@ -204,6 +212,8 @@ try {
         Invoke-Native git @('push', $settings.Remote, $settings.ProductionBranch)
         Wait-GitHubActions $settings.GitHubActions $commit $repositoryPath
         Wait-Portainer $settings.Portainer $commit $repositoryPath
+        Write-Stage 'sincronizacao' 'Baixando o commit automatico da imagem'
+        Invoke-Native git @('pull', '--ff-only', $settings.Remote, $settings.ProductionBranch)
     }
 
     Write-Stage 'concluido' "Commit $commit finalizado em $(Format-Duration ((Get-Date) - $scriptStartedAt))"
