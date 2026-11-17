@@ -80,6 +80,11 @@ Contrato esperado: `GET /api/combo-audit?page=1&page_size=25`, `GET /api/combo-a
 `GET /api/combo-rules/version`, usando schema `1.0`. Correções devem seguir pelo comando
 `/combos-editar` no Slack.
 
+Para repassar o uso a outra pessoa ou aplicação, consulte o
+[`Guia para Everson — auditoria e edição de combos`](docs/integracao/GUIA_EVERSON_AUDITORIA_EDICAO_COMBOS.md),
+que descreve acesso, segurança, exemplos, testes e o limite intencional entre API de leitura e edição
+via Slack.
+
 Em produção, somente o serviço do Painel deve ingressar na rede Docker externa
 `combo-audit-internal`, usando `http://slack-combos:8080`. A porta da API não deve ser publicada no
 host. A consulta geral percorre todas as páginas antes de apresentar ou salvar o resultado; se uma
