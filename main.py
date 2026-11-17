@@ -3310,13 +3310,6 @@ else:
 ##para compilar -> python -m streamlit run main.py --server.port 8520
 
 
-##PARA DEPLOY
-##powershell -ExecutionPolicy Bypass -File .\scripts\commit-deploy.ps1 `
-##  -Message "Adiciona automacao de commit e deploy do painel" `
-##  -ConfirmProduction
-
-
-
 # REFERENCIA OPERACIONAL - INSERIR COTAS EM COMBO EXISTENTE
 # Operacao realizada em 09/11/2026:
 # combo 240035686, cliente 172422, cotas 204, 207, 210 e 213, quantidade 1.

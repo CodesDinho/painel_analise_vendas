@@ -137,6 +137,14 @@ pelo Git/Portainer; não se deve copiar código manualmente nem editar o contain
 Depois de criar uma branch curta e concluir a alteração, o fluxo completo pode ser executado com:
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\iniciar-alteracao.ps1 `
+  -Branch "tipo/descricao-da-alteracao"
+```
+
+O comando acima exige uma árvore limpa, sincroniza `main` por fast-forward e cria a branch. Depois de
+editar e salvar os arquivos, execute:
+
+```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\commit-deploy.ps1 `
   -Message "Descreva a alteracao" `
   -ConfirmProduction
