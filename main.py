@@ -3317,7 +3317,6 @@ else:
 # inserir_clientes_em_combos(
 #     clientes=[172422], combos=[240035686], quantidade_cota=1
 # )
-#
 # SQL equivalente e idempotente para cada cota/cliente:
 # INSERT INTO ITEMCOTACOMBOCLIENTE (QUANTIDADE, COTA, COMBO, CLIENTE)
 # SELECT 1, <COTA>, <COMBO>, <CLIENTE>
