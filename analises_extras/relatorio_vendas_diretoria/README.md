@@ -1,7 +1,8 @@
 # Relatório de vendas — Diretoria
 
 Relatório somente leitura, agregado no BigQuery, com os campos de filial, mês, ano, tipo de
-estabelecimento, equipe, fornecedor, produto, quantidade, venda líquida e margem bruta.
+estabelecimento, equipe, fornecedor, produto, quantidade, venda líquida e margem bruta. O nome da
+filial é usado nos filtros, mas não ocupa uma coluna na grade nem no Excel.
 
 O usuário escolhe e autoriza períodos de 1, 3, 6 ou 12 meses, sempre encerrados no dia 20 mais
 recente disponível por padrão. Logo abaixo da autorização, pode informar livremente as datas inicial

@@ -59,6 +59,7 @@ class RelatorioVendasDiretoriaTest(unittest.TestCase):
         wb = load_workbook(BytesIO(exportar_excel(pd.DataFrame([linha]))))
         ws = wb["Dados"]
         cabecalhos = [c.value for c in ws[1]]
+        self.assertNotIn("Nome Filial", cabecalhos)
         margem = ws.cell(1, cabecalhos.index("Margem Bruta (%) — VALIDAR") + 1)
         self.assertEqual(margem.fill.fgColor.rgb[-6:], "F4B183")
         self.assertIn("Regras_e_escopo", wb.sheetnames)

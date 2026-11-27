@@ -177,9 +177,9 @@ def render_relatorio_vendas_diretoria() -> None:
     m2.metric("Quantidade", f"{resumo['quantidade']:,.0f}".replace(",", "."))
     m3.metric("Venda líquida", _moeda(float(resumo["venda"])))
     m4.metric("🟠 Margem bruta (%) — validar", f"{float(resumo['margem_pct']):,.2f}%".replace(",", "X").replace(".", ",").replace("X", "."))
-    exibicao = dados.rename(columns={
-        "filial": "Filial", "nome_filial": "Nome Filial", "mes": "Mês", "ano": "Ano",
-        "tipo_estabelecimento": "Tipo Estabelecimento",
+    exibicao = dados.drop(columns=["nome_filial", "custo_total"], errors="ignore").rename(columns={
+        "filial": "Filial", "mes": "Mês", "ano": "Ano",
+        "tipo_estabelecimento": "Tipo Estab.",
         "nome_tipo_estabelecimento": "Nome Tipo Estabelecimento",
         "equipe": "Equipe", "nome_equipe": "Nome Equipe",
         "fornecedor": "Fornecedor", "nome_fornecedor": "Nome Fornecedor",

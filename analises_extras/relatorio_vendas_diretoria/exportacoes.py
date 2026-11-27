@@ -9,8 +9,8 @@ from .calculos import calcular_resumo
 
 
 COLUNAS_EXCEL = {
-    "filial": "Filial", "nome_filial": "Nome Filial", "mes": "Mês", "ano": "Ano",
-    "tipo_estabelecimento": "Tipo Estabelecimento",
+    "filial": "Filial", "mes": "Mês", "ano": "Ano",
+    "tipo_estabelecimento": "Tipo Estab.",
     "nome_tipo_estabelecimento": "Nome Tipo Estabelecimento",
     "equipe": "Equipe", "nome_equipe": "Nome Equipe",
     "fornecedor": "Fornecedor", "nome_fornecedor": "Nome Fornecedor",
