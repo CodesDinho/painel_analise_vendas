@@ -57,26 +57,39 @@ def render_relatorio_vendas_diretoria() -> None:
         st.session_state["rvd_meses_autorizados"] = 1
     if "rvd_data_inicio" not in st.session_state or "rvd_data_fim" not in st.session_state:
         _atualizar_datas_do_periodo()
-    meses = st.radio(
-        "Qual período você autoriza gerar?",
+    p1, p2, p3 = st.columns([1.25, 1.8, 3.6])
+    p1.markdown("<div style='padding-top:.45rem'><b>Qual período você autoriza gerar?</b></div>",
+                unsafe_allow_html=True)
+    meses = p2.radio(
+        "Período autorizado",
         options=[1, 3, 6, 12], horizontal=True,
         format_func=lambda valor: f"{valor} {'mês' if valor == 1 else 'meses'}",
         key="rvd_meses_autorizados",
         on_change=_atualizar_datas_do_periodo,
+        label_visibility="collapsed",
     )
-    st.caption(
-        "Tempos médios — 1 mês: ~13 s  |  3 meses: ~27 s  |  "
-        "6 meses: ~60 s  |  12 meses: ~104 s"
+    p3.markdown(
+        "<div style='padding-top:.55rem;font-size:.78rem;color:#667085;white-space:nowrap;"
+        "overflow-x:auto'>Tempos médios — 1 mês: ~13 s &nbsp;|&nbsp; 3 meses: ~27 s &nbsp;|&nbsp; "
+        "6 meses: ~60 s &nbsp;|&nbsp; 12 meses: ~104 s</div>",
+        unsafe_allow_html=True,
     )
-    d1, d2, d3 = st.columns([1, 1, 1.35])
+    d1, d2, d3, d4 = st.columns([1, 1, 1.05, 1.35])
     inicio = d1.date_input(
         "Data inicial", key="rvd_data_inicio", max_value=data_limite_disponivel(date.today()),
     )
     fim = d2.date_input(
         "Data final", key="rvd_data_fim", max_value=data_limite_disponivel(date.today()),
     )
+    d3.markdown("<div style='height:1.55rem'></div>", unsafe_allow_html=True)
+    incluir_tipo_48 = d3.checkbox(
+        "Incluir pedidos tipo 48",
+        value=False,
+        key="rvd_incluir_tipo_48",
+        help="Desmarcado por padrão. A inclusão pode afetar a leitura da margem bruta.",
+    )
     meses_solicitados = quantidade_meses(inicio, fim)
-    d3.markdown(
+    d4.markdown(
         f"""
         <div style="margin-top:1.75rem;padding:.55rem .75rem;background:#e8f1fb;
                     border-radius:.4rem;line-height:1.25">
@@ -93,12 +106,6 @@ def render_relatorio_vendas_diretoria() -> None:
     if erro:
         st.error(erro)
         return
-    incluir_tipo_48 = st.checkbox(
-        "Incluir pedidos tipo 48",
-        value=False,
-        key="rvd_incluir_tipo_48",
-        help="Desmarcado por padrão. A inclusão pode afetar a leitura da margem bruta.",
-    )
     if incluir_tipo_48:
         st.warning("Pedidos tipo 48 serão incluídos por escolha do usuário e podem afetar a margem.")
     with st.expander("Regras e escopo aplicados ao relatório", expanded=False):
@@ -133,7 +140,12 @@ def render_relatorio_vendas_diretoria() -> None:
             f"Autorizo gerar {meses} meses, ciente do tempo médio total de {tempos[meses].split('total ~')[1]}",
             key=f"rvd_confirmacao_volume_{meses}",
         )
-    if st.button("Gerar relatório autorizado", type="primary", key="rvd_gerar", disabled=not autorizado):
+    acao1, acao2 = st.columns([1, 2.4])
+    gerar = acao1.button(
+        "Gerar relatório autorizado", type="primary", key="rvd_gerar",
+        disabled=not autorizado, use_container_width=True,
+    )
+    if gerar:
         try:
             with st.spinner("Consultando e agregando os dados no BigQuery..."):
                 st.session_state["rvd_dados"] = _carregar(inicio, fim, incluir_tipo_48)
@@ -142,7 +154,11 @@ def render_relatorio_vendas_diretoria() -> None:
             st.error(f"Não foi possível consultar o BigQuery: {exc}")
             return
     if st.session_state.get("rvd_periodo") != (inicio, fim, incluir_tipo_48):
-        st.info("Selecione o período e clique em Gerar relatório.")
+        acao2.markdown(
+            "<div style='padding:.55rem .75rem;background:#e8f1fb;border-radius:.4rem'>"
+            "Selecione o período e clique em <b>Gerar relatório</b>.</div>",
+            unsafe_allow_html=True,
+        )
         return
     dados = st.session_state.get("rvd_dados")
     if dados is None:
