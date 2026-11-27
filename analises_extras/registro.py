@@ -5,6 +5,7 @@ from typing import Callable
 
 from .pernod_reembolso import render_analise_pernod_reembolso
 from .auditoria_combos import render_auditoria_combos
+from .relatorio_vendas_diretoria import render_relatorio_vendas_diretoria
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,12 @@ ANALISES_EXTRAS: tuple[AnaliseExtra, ...] = (
         titulo="Auditoria de combos",
         destino="11. Auditoria de combos",
         renderizar=render_auditoria_combos,
+    ),
+    AnaliseExtra(
+        chave="relatorio_vendas_diretoria",
+        titulo="Relatório de vendas — Diretoria",
+        destino="12. Relatório de vendas — Diretoria",
+        renderizar=render_relatorio_vendas_diretoria,
     ),
 )
 

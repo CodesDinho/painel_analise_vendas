@@ -60,6 +60,11 @@ configuração continuam compartilhadas pelo projeto. Consulte `analises_extras/
 um novo módulo seguindo o padrão e `docs/PENDENCIAS_ESTRUTURA.md` para os itens estruturais ainda
 adiados.
 
+O menu **Relatório de vendas — Diretoria** consulta no BigQuery um detalhamento agregado por filial,
+mês, tipo de estabelecimento, equipe, fornecedor e produto. A consulta abre com um mês e limita cada
+exportação detalhada a três meses. Venda líquida e margem bruta permanecem destacadas em laranja como
+pendentes de homologação da fórmula, tanto na tela quanto no Excel.
+
 ### Auditoria de combos
 
 O menu **Auditoria de combos** consome, em modo somente leitura, os resultados estruturados da API
