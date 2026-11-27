@@ -10,7 +10,7 @@ from openpyxl import load_workbook
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from analises_extras.relatorio_vendas_diretoria.calculos import (
-    calcular_resumo, data_limite_disponivel, periodo_padrao, validar_periodo,
+    calcular_resumo, data_limite_disponivel, periodo_padrao, periodo_por_meses, validar_periodo,
 )
 from analises_extras.relatorio_vendas_diretoria.exportacoes import exportar_excel
 
@@ -20,10 +20,12 @@ class RelatorioVendasDiretoriaTest(unittest.TestCase):
         self.assertEqual(periodo_padrao(date(2026, 11, 27)), (date(2026, 11, 1), date(2026, 11, 20)))
         self.assertEqual(data_limite_disponivel(date(2026, 11, 10)), date(2026, 10, 20))
 
-    def test_bloqueia_mais_de_tres_meses(self):
-        erro = validar_periodo(date(2026, 1, 1), date(2026, 4, 20), date(2026, 11, 27))
-        self.assertIn("3 meses", erro)
-        self.assertIsNone(validar_periodo(date(2026, 1, 1), date(2026, 3, 20), date(2026, 11, 27)))
+    def test_periodos_autorizaveis_e_limite_de_doze_meses(self):
+        self.assertEqual(periodo_por_meses(date(2026, 11, 27), 6), (date(2026, 6, 1), date(2026, 11, 20)))
+        self.assertEqual(periodo_por_meses(date(2026, 11, 27), 12), (date(2025, 12, 1), date(2026, 11, 20)))
+        erro = validar_periodo(date(2025, 11, 1), date(2026, 11, 20), date(2026, 11, 27))
+        self.assertIn("12 meses", erro)
+        self.assertIsNone(validar_periodo(date(2025, 12, 1), date(2026, 11, 20), date(2026, 11, 27)))
 
     def test_resumo_recalcula_percentual_sobre_totais(self):
         dados = pd.DataFrame({"qtde": [2, 3], "venda_liquida": [100.0, 300.0], "margem_bruta": [10.0, 90.0]})
@@ -43,6 +45,7 @@ class RelatorioVendasDiretoriaTest(unittest.TestCase):
         for titulo in ("Venda Líquida — PENDENTE CONFIRMAÇÃO", "Margem Bruta — PENDENTE CONFIRMAÇÃO"):
             celula = ws.cell(1, cabecalhos.index(titulo) + 1)
             self.assertEqual(celula.fill.fgColor.rgb[-6:], "F4B183")
+        self.assertEqual(wb["Pendencias"].max_row, 7)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-from .calculos import calcular_resumo, periodo_padrao, validar_periodo
+from .calculos import calcular_resumo, periodo_por_meses, validar_periodo
 from .consultas import consultar_relatorio
 from .exportacoes import exportar_excel
 
@@ -36,11 +36,24 @@ def _filtro_dimensao(
 
 def render_relatorio_vendas_diretoria() -> None:
     st.title("Relatório de vendas — Diretoria")
-    st.caption("Consulta agregada no BigQuery. Período detalhado limitado a três meses.")
-    padrao_inicio, padrao_fim = periodo_padrao(date.today())
-    c1, c2 = st.columns(2)
-    inicio = c1.date_input("Data inicial", padrao_inicio, key="rvd_data_inicio")
-    fim = c2.date_input("Data final", padrao_fim, key="rvd_data_fim")
+    st.caption("Escolha e autorize o volume antes de consultar o BigQuery e preparar o Excel.")
+    tempos = {
+        1: "consulta ~7 s; Excel ~6 s; total ~13 s",
+        3: "consulta ~7 s; Excel ~20 s; total ~27 s",
+        6: "consulta ~8 s; Excel ~52 s; total ~60 s",
+        12: "consulta ~9 s; Excel ~95 s; total ~104 s",
+    }
+    meses = st.radio(
+        "Qual período você autoriza gerar?",
+        options=[1, 3, 6, 12], horizontal=True,
+        format_func=lambda valor: f"{valor} {'mês' if valor == 1 else 'meses'} — {tempos[valor]}",
+        key="rvd_meses_autorizados",
+    )
+    inicio, fim = periodo_por_meses(date.today(), meses)
+    st.info(
+        f"Período que será consultado: **{inicio:%d/%m/%Y} a {fim:%d/%m/%Y}**. "
+        "Tempos são referências medidas e podem variar conforme o servidor e o volume do período."
+    )
     erro = validar_periodo(inicio, fim, date.today())
     if erro:
         st.error(erro)
@@ -48,15 +61,26 @@ def render_relatorio_vendas_diretoria() -> None:
     st.markdown(
         """
         <div style="background:#F4B183;padding:12px;border-radius:6px;color:#3b2a12">
-        <b>Pendente definição/confirmação:</b> Venda Líquida usa provisoriamente
-        <code>SUM(valor_total)</code>. Margem Bruta usa provisoriamente
-        <code>SUM(valor_total - valor_custo × quantidade)</code>.
-        Os campos permanecem disponíveis na tela e no Excel, destacados em laranja.
+        <b>Pendente definição/confirmação da Controladoria:</b><br>
+        <b>Venda Líquida:</b> confirmar se <code>valor_total</code> já é líquido contábil.<br>
+        <b>Margem Bruta:</b> confirmar custo × quantidade e se a margem é antes ou após impostos.<br>
+        <b>Bonificações:</b> decidir se reduzem a margem, são excluídas ou exibidas separadamente.<br>
+        <b>Devoluções:</b> definir a origem e se estornam venda, custo e quantidade.<br>
+        <b>Impostos:</b> definir quais tributos serão deduzidos.<br>
+        <b>Pedidos tipo 48:</b> decidir entre excluir, incorporar ou apresentar separadamente.<br>
+        Tratamento provisório: venda = <code>SUM(valor_total)</code>; margem =
+        <code>SUM(valor_total - valor_custo × quantidade)</code>; tipo 48 excluído.
         </div>
         """,
         unsafe_allow_html=True,
     )
-    if st.button("Gerar relatório", type="primary", key="rvd_gerar"):
+    autorizado = True
+    if meses >= 6:
+        autorizado = st.checkbox(
+            f"Autorizo gerar {meses} meses, ciente do tempo médio total de {tempos[meses].split('total ~')[1]}",
+            key=f"rvd_confirmacao_volume_{meses}",
+        )
+    if st.button("Gerar relatório autorizado", type="primary", key="rvd_gerar", disabled=not autorizado):
         try:
             with st.spinner("Consultando e agregando os dados no BigQuery..."):
                 st.session_state["rvd_dados"] = _carregar(inicio, fim)

@@ -61,9 +61,10 @@ um novo módulo seguindo o padrão e `docs/PENDENCIAS_ESTRUTURA.md` para os iten
 adiados.
 
 O menu **Relatório de vendas — Diretoria** consulta no BigQuery um detalhamento agregado por filial,
-mês, tipo de estabelecimento, equipe, fornecedor e produto. A consulta abre com um mês e limita cada
-exportação detalhada a três meses. Venda líquida e margem bruta permanecem destacadas em laranja como
-pendentes de homologação da fórmula, tanto na tela quanto no Excel.
+mês, tipo de estabelecimento, equipe, fornecedor e produto. O usuário autoriza períodos de 1, 3, 6
+ou 12 meses após visualizar os tempos medidos; 6 e 12 meses exigem confirmação adicional. Venda
+líquida e margem bruta permanecem destacadas em laranja como pendentes de homologação da fórmula,
+tanto na tela quanto no Excel.
 
 ### Auditoria de combos
 

@@ -33,10 +33,24 @@ def exportar_excel(dados: pd.DataFrame) -> bytes:
         {"Indicador": "Margem bruta % — PENDENTE CONFIRMAÇÃO", "Valor": resumo["margem_pct"]},
     ])
     pendencias = pd.DataFrame([
-        {"Campo": "Venda Líquida", "Status": "PENDENTE DEFINIÇÃO/CONFIRMAÇÃO",
-         "Fórmula provisória": "SUM(vendas.valor_total)"},
-        {"Campo": "Margem Bruta", "Status": "PENDENTE DEFINIÇÃO/CONFIRMAÇÃO",
-         "Fórmula provisória": "SUM(valor_total - valor_custo × quantidade)"},
+        {"Tema": "Venda Líquida", "Pergunta para homologação":
+         "valor_total já representa venda líquida contábil ou ainda exige descontos e impostos?",
+         "Tratamento provisório": "SUM(vendas.valor_total)"},
+        {"Tema": "Fórmula da Margem Bruta", "Pergunta para homologação":
+         "o custo correto é valor_custo × quantidade e a margem deve ser antes ou depois dos impostos?",
+         "Tratamento provisório": "SUM(valor_total - valor_custo × quantidade)"},
+        {"Tema": "Bonificações", "Pergunta para homologação":
+         "itens bonificados devem reduzir a margem, ser excluídos ou aparecer em indicador separado?",
+         "Tratamento provisório": "permanecem no resultado conforme valor e custo registrados"},
+        {"Tema": "Devoluções", "Pergunta para homologação":
+         "qual origem identifica devoluções e elas devem estornar venda, custo e quantidade?",
+         "Tratamento provisório": "não há tratamento adicional além do sinal gravado na fato"},
+        {"Tema": "Impostos", "Pergunta para homologação":
+         "quais tributos devem ser deduzidos: ICMS, ICMS-ST, PIS, COFINS, IPI ou outros?",
+         "Tratamento provisório": "nenhuma dedução adicional"},
+        {"Tema": "Pedidos tipo 48", "Pergunta para homologação":
+         "devem ser excluídos, incorporados à venda regular ou apresentados separadamente?",
+         "Tratamento provisório": "excluídos do relatório"},
     ])
     with pd.ExcelWriter(arquivo, engine="openpyxl") as writer:
         resumo_df.to_excel(writer, sheet_name="Resumo", index=False)
@@ -62,7 +76,7 @@ def exportar_excel(dados: pd.DataFrame) -> bytes:
         for planilha_nome in ("Resumo", "Pendencias"):
             ws = writer.book[planilha_nome]
             for linha in ws.iter_rows():
-                if any("PENDENTE" in str(c.value or "").upper() for c in linha):
+                if planilha_nome == "Pendencias" or any("PENDENTE" in str(c.value or "").upper() for c in linha):
                     for celula in linha:
                         celula.fill = PatternFill("solid", fgColor=LARANJA)
     return arquivo.getvalue()

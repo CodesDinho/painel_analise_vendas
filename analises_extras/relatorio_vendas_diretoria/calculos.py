@@ -5,7 +5,8 @@ from datetime import date
 import pandas as pd
 
 
-MAX_MESES_DETALHADOS = 3
+MAX_MESES_DETALHADOS = 12
+PERIODOS_PERMITIDOS = (1, 3, 6, 12)
 
 
 def data_limite_disponivel(hoje: date) -> date:
@@ -22,6 +23,15 @@ def periodo_padrao(hoje: date) -> tuple[date, date]:
     return date(fim.year, fim.month, 1), fim
 
 
+def periodo_por_meses(hoje: date, meses: int) -> tuple[date, date]:
+    if meses not in PERIODOS_PERMITIDOS:
+        raise ValueError("O período deve ser de 1, 3, 6 ou 12 meses.")
+    fim = data_limite_disponivel(hoje)
+    indice = fim.year * 12 + fim.month - 1 - (meses - 1)
+    inicio = date(indice // 12, indice % 12 + 1, 1)
+    return inicio, fim
+
+
 def quantidade_meses(inicio: date, fim: date) -> int:
     return (fim.year - inicio.year) * 12 + fim.month - inicio.month + 1
 
@@ -32,7 +42,7 @@ def validar_periodo(inicio: date, fim: date, hoje: date) -> str | None:
     if fim > data_limite_disponivel(hoje):
         return "A data final não pode ultrapassar o dia 20 mais recente disponível."
     if quantidade_meses(inicio, fim) > MAX_MESES_DETALHADOS:
-        return "A consulta e a exportação detalhadas estão limitadas a 3 meses."
+        return "A consulta e a exportação detalhadas estão limitadas a 12 meses."
     return None
 
 
