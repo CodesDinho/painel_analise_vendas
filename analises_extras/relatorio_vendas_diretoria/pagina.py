@@ -60,11 +60,15 @@ def render_relatorio_vendas_diretoria() -> None:
     meses = st.radio(
         "Qual período você autoriza gerar?",
         options=[1, 3, 6, 12], horizontal=True,
-        format_func=lambda valor: f"{valor} {'mês' if valor == 1 else 'meses'} — {tempos[valor]}",
+        format_func=lambda valor: f"{valor} {'mês' if valor == 1 else 'meses'}",
         key="rvd_meses_autorizados",
         on_change=_atualizar_datas_do_periodo,
     )
-    d1, d2 = st.columns(2)
+    st.caption(
+        "Tempos médios — 1 mês: ~13 s  |  3 meses: ~27 s  |  "
+        "6 meses: ~60 s  |  12 meses: ~104 s"
+    )
+    d1, d2, d3 = st.columns([1, 1, 1.35])
     inicio = d1.date_input(
         "Data inicial", key="rvd_data_inicio", max_value=data_limite_disponivel(date.today()),
     )
@@ -72,10 +76,16 @@ def render_relatorio_vendas_diretoria() -> None:
         "Data final", key="rvd_data_fim", max_value=data_limite_disponivel(date.today()),
     )
     meses_solicitados = quantidade_meses(inicio, fim)
-    st.info(
-        f"Período que será consultado: **{inicio:%d/%m/%Y} a {fim:%d/%m/%Y}**. "
-        f"O intervalo abrange **{meses_solicitados} mês(es)** dos **{meses} autorizados**. "
-        "Os tempos são referências medidas e podem variar conforme o servidor e o volume."
+    d3.markdown(
+        f"""
+        <div style="margin-top:1.75rem;padding:.55rem .75rem;background:#e8f1fb;
+                    border-radius:.4rem;line-height:1.25">
+        <small><b>Período que será consultado</b><br>
+        {inicio:%d/%m/%Y} a {fim:%d/%m/%Y}<br>
+        {meses_solicitados} mês(es) de {meses} autorizado(s)</small>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
     erro = validar_periodo(inicio, fim, date.today()) or validar_periodo_autorizado(
         inicio, fim, meses,
@@ -83,22 +93,22 @@ def render_relatorio_vendas_diretoria() -> None:
     if erro:
         st.error(erro)
         return
-    st.markdown(
-        """
-        <div style="background:#F4B183;padding:12px;border-radius:6px;color:#3b2a12">
-        <b>Pendente definição/confirmação da Controladoria:</b><br>
-        <b>Venda Líquida:</b> confirmar se <code>valor_total</code> já é líquido contábil.<br>
-        <b>Margem Bruta:</b> confirmar custo × quantidade e se a margem é antes ou após impostos.<br>
-        <b>Bonificações:</b> decidir se reduzem a margem, são excluídas ou exibidas separadamente.<br>
-        <b>Devoluções:</b> definir a origem e se estornam venda, custo e quantidade.<br>
-        <b>Impostos:</b> definir quais tributos serão deduzidos.<br>
-        <b>Pedidos tipo 48:</b> decidir entre excluir, incorporar ou apresentar separadamente.<br>
-        Tratamento provisório: venda = <code>SUM(valor_total)</code>; margem =
-        <code>SUM(valor_total - valor_custo × quantidade)</code>; tipo 48 excluído.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    with st.expander("🟠 Pendências de definição/confirmação da Controladoria", expanded=False):
+        st.markdown(
+            """
+            <div style="background:#F4B183;padding:10px;border-radius:6px;color:#3b2a12">
+            <b>Venda Líquida:</b> confirmar se <code>valor_total</code> já é líquido contábil.<br>
+            <b>Margem Bruta:</b> confirmar custo × quantidade e se a margem é antes ou após impostos.<br>
+            <b>Bonificações:</b> decidir se reduzem a margem, são excluídas ou exibidas separadamente.<br>
+            <b>Devoluções:</b> definir a origem e se estornam venda, custo e quantidade.<br>
+            <b>Impostos:</b> definir quais tributos serão deduzidos.<br>
+            <b>Pedidos tipo 48:</b> decidir entre excluir, incorporar ou apresentar separadamente.<br>
+            Tratamento provisório: venda = <code>SUM(valor_total)</code>; margem =
+            <code>SUM(valor_total - valor_custo × quantidade)</code>; tipo 48 excluído.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
     autorizado = True
     if meses >= 6:
         autorizado = st.checkbox(
