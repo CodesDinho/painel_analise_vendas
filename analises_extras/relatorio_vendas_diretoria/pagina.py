@@ -5,7 +5,10 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-from .calculos import calcular_resumo, periodo_por_meses, validar_periodo
+from .calculos import (
+    calcular_resumo, data_limite_disponivel, periodo_por_meses,
+    quantidade_meses, validar_periodo, validar_periodo_autorizado,
+)
 from .consultas import consultar_relatorio
 from .exportacoes import exportar_excel
 
@@ -34,6 +37,13 @@ def _filtro_dimensao(
     )
 
 
+def _atualizar_datas_do_periodo() -> None:
+    meses = st.session_state["rvd_meses_autorizados"]
+    inicio, fim = periodo_por_meses(date.today(), meses)
+    st.session_state["rvd_data_inicio"] = inicio
+    st.session_state["rvd_data_fim"] = fim
+
+
 def render_relatorio_vendas_diretoria() -> None:
     st.title("Relatório de vendas — Diretoria")
     st.caption("Escolha e autorize o volume antes de consultar o BigQuery e preparar o Excel.")
@@ -43,18 +53,33 @@ def render_relatorio_vendas_diretoria() -> None:
         6: "consulta ~8 s; Excel ~52 s; total ~60 s",
         12: "consulta ~9 s; Excel ~95 s; total ~104 s",
     }
+    if "rvd_meses_autorizados" not in st.session_state:
+        st.session_state["rvd_meses_autorizados"] = 1
+    if "rvd_data_inicio" not in st.session_state or "rvd_data_fim" not in st.session_state:
+        _atualizar_datas_do_periodo()
     meses = st.radio(
         "Qual período você autoriza gerar?",
         options=[1, 3, 6, 12], horizontal=True,
         format_func=lambda valor: f"{valor} {'mês' if valor == 1 else 'meses'} — {tempos[valor]}",
         key="rvd_meses_autorizados",
+        on_change=_atualizar_datas_do_periodo,
     )
-    inicio, fim = periodo_por_meses(date.today(), meses)
+    d1, d2 = st.columns(2)
+    inicio = d1.date_input(
+        "Data inicial", key="rvd_data_inicio", max_value=data_limite_disponivel(date.today()),
+    )
+    fim = d2.date_input(
+        "Data final", key="rvd_data_fim", max_value=data_limite_disponivel(date.today()),
+    )
+    meses_solicitados = quantidade_meses(inicio, fim)
     st.info(
         f"Período que será consultado: **{inicio:%d/%m/%Y} a {fim:%d/%m/%Y}**. "
-        "Tempos são referências medidas e podem variar conforme o servidor e o volume do período."
+        f"O intervalo abrange **{meses_solicitados} mês(es)** dos **{meses} autorizados**. "
+        "Os tempos são referências medidas e podem variar conforme o servidor e o volume."
     )
-    erro = validar_periodo(inicio, fim, date.today())
+    erro = validar_periodo(inicio, fim, date.today()) or validar_periodo_autorizado(
+        inicio, fim, meses,
+    )
     if erro:
         st.error(erro)
         return

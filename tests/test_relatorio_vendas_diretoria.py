@@ -10,7 +10,8 @@ from openpyxl import load_workbook
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from analises_extras.relatorio_vendas_diretoria.calculos import (
-    calcular_resumo, data_limite_disponivel, periodo_padrao, periodo_por_meses, validar_periodo,
+    calcular_resumo, data_limite_disponivel, periodo_padrao, periodo_por_meses,
+    validar_periodo, validar_periodo_autorizado,
 )
 from analises_extras.relatorio_vendas_diretoria.exportacoes import exportar_excel
 
@@ -26,6 +27,12 @@ class RelatorioVendasDiretoriaTest(unittest.TestCase):
         erro = validar_periodo(date(2025, 11, 1), date(2026, 11, 20), date(2026, 11, 27))
         self.assertIn("12 meses", erro)
         self.assertIsNone(validar_periodo(date(2025, 12, 1), date(2026, 11, 20), date(2026, 11, 27)))
+
+    def test_datas_livres_respeitam_volume_autorizado(self):
+        self.assertIsNone(validar_periodo_autorizado(date(2024, 1, 1), date(2024, 12, 31), 12))
+        erro = validar_periodo_autorizado(date(2024, 1, 1), date(2024, 12, 31), 6)
+        self.assertIn("12 meses", erro)
+        self.assertIn("6 meses", erro)
 
     def test_resumo_recalcula_percentual_sobre_totais(self):
         dados = pd.DataFrame({"qtde": [2, 3], "venda_liquida": [100.0, 300.0], "margem_bruta": [10.0, 90.0]})

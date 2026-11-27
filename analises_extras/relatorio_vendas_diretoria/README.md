@@ -4,9 +4,11 @@ Relatório somente leitura, agregado no BigQuery, com os campos de filial, mês,
 estabelecimento, equipe, fornecedor, produto, quantidade, venda líquida e margem bruta.
 
 O usuário escolhe e autoriza períodos de 1, 3, 6 ou 12 meses, sempre encerrados no dia 20 mais
-recente disponível. A tela informa tempos reais de referência para consulta e montagem do Excel;
-períodos de 6 e 12 meses exigem confirmação adicional. Pedidos tipo 48 são provisoriamente excluídos,
-preservando a regra já utilizada pelas análises gerais do painel.
+recente disponível por padrão. Logo abaixo da autorização, pode informar livremente as datas inicial
+e final, inclusive um ano civil fechado, desde que o intervalo não ultrapasse o volume autorizado nem
+o limite absoluto de 12 meses. A tela informa tempos reais de referência para consulta e montagem do
+Excel; períodos de 6 e 12 meses exigem confirmação adicional. Pedidos tipo 48 são provisoriamente
+excluídos, preservando a regra já utilizada pelas análises gerais do painel.
 
 ## Pendências de homologação
 

@@ -46,6 +46,16 @@ def validar_periodo(inicio: date, fim: date, hoje: date) -> str | None:
     return None
 
 
+def validar_periodo_autorizado(inicio: date, fim: date, meses_autorizados: int) -> str | None:
+    meses_solicitados = quantidade_meses(inicio, fim)
+    if meses_solicitados > meses_autorizados:
+        return (
+            f"O intervalo escolhido abrange {meses_solicitados} meses, mas a autorização atual "
+            f"é de no máximo {meses_autorizados} meses."
+        )
+    return None
+
+
 def calcular_resumo(dados: pd.DataFrame) -> dict[str, float | int]:
     if dados.empty:
         return {"linhas": 0, "quantidade": 0.0, "venda": 0.0, "margem": 0.0, "margem_pct": 0.0}
