@@ -7,16 +7,21 @@ O usuário escolhe e autoriza períodos de 1, 3, 6 ou 12 meses, sempre encerrado
 recente disponível por padrão. Logo abaixo da autorização, pode informar livremente as datas inicial
 e final, inclusive um ano civil fechado, desde que o intervalo não ultrapasse o volume autorizado nem
 o limite absoluto de 12 meses. A tela informa tempos reais de referência para consulta e montagem do
-Excel; períodos de 6 e 12 meses exigem confirmação adicional. Pedidos tipo 48 são provisoriamente
-excluídos, preservando a regra já utilizada pelas análises gerais do painel.
+Excel; períodos de 6 e 12 meses exigem confirmação adicional. Pedidos tipo 48 são excluídos por
+padrão, mas podem ser incluídos conscientemente por meio de um checkbox; a escolha fica registrada
+na tela, no nome do arquivo e no Excel.
 
-## Pendências de homologação
+## Regras e escopo
 
-- **Venda Líquida:** provisoriamente `SUM(vendas.valor_total)`.
-- **Margem Bruta:** provisoriamente `SUM(valor_total - valor_custo * quantidade)`.
-- **Bonificações:** confirmar se reduzem margem, são excluídas ou separadas.
-- **Devoluções:** confirmar a origem e o estorno de venda, custo e quantidade.
-- **Impostos:** confirmar quais tributos devem ser deduzidos.
-- **Pedidos tipo 48:** confirmar se devem ser excluídos, incorporados ou separados.
+- **Venda Líquida:** confirmada como `SUM(vendas.valor_total)`.
+- **Margem Bruta (%):** o campo oficial foi localizado em `VIEW_ITEMPEDIDO.MARGEMBRUTA`. Como todas
+  as filiais ativas usam custo bruto, o agregado aplica
+  `((SUM(valor_total) / SUM(valor_custo * quantidade)) - 1) * 100`. O resultado ainda deve ser
+  validado contra uma amostra do relatório TOP.
+- **Bonificações:** permanecem na base e reduzem a margem; o tratamento definitivo está a verificar.
+- **Devoluções:** não entram; a origem considerada contém somente vendas.
+- **Impostos:** não há dedução ou tratamento adicional.
+- **Pedidos tipo 48:** excluídos por padrão; a inclusão opcional exibe um alerta por poder afetar a
+  leitura da margem.
 
-Os dois campos são destacados em laranja na tela e no Excel até a confirmação da Controladoria.
+A margem e as bonificações permanecem destacadas em laranja até a validação final.

@@ -20,11 +20,30 @@ WITH equipes AS (
   SELECT CAST(fornecedor_codigo AS INT64) fornecedor, ANY_VALUE(fornecedor_nome) nome_fornecedor
   FROM `dinho-dw.topsystem_silver.fornecedor` GROUP BY 1
 ), produtos AS (
-  SELECT CAST(codigo AS INT64) produto, ANY_VALUE(nome) nome_produto
+  SELECT CAST(codigo AS INT64) produto, ANY_VALUE(nome) nome_produto,
+    ANY_VALUE(CAST(clifor AS INT64)) fornecedor_padrao
   FROM `dinho-dw.topsystem_bronze.produto` GROUP BY 1
+), funcionarios AS (
+  SELECT CAST(codigo AS INT64) funcionario, ANY_VALUE(CAST(equipe AS INT64)) equipe_padrao
+  FROM `dinho-dw.topsystem_bronze.funcionario` GROUP BY 1
 ), filiais AS (
   SELECT CAST(codigo AS INT64) filial, ANY_VALUE(nome) nome_filial
   FROM `dinho-dw.topsystem_bronze.filial` GROUP BY 1
+), movimentos AS (
+  SELECT pedido_data_emissao, cliente_codigo, funcionario_codigo, equipe_codigo,
+    produto_fornecedor_cod, produto_codigo, quantidade, valor_total, valor_custo, pedido_filial
+  FROM `dinho-dw.topsystem_silver.vendas`
+  WHERE DATE(pedido_data_emissao) BETWEEN @data_inicio AND @data_fim
+    AND cliente_codigo IS NOT NULL
+    AND COALESCE(TRIM(tipo_pedido), '') <> '48'
+  UNION ALL
+  SELECT pedido_data_emissao, cliente_codigo, funcionario_codigo,
+    CAST(NULL AS INT64) equipe_codigo, CAST(NULL AS INT64) produto_fornecedor_cod,
+    produto_codigo, quantidade, valor_total, valor_custo, pedido_filial
+  FROM `dinho-dw.topsystem_silver.pedidos_48`
+  WHERE @incluir_tipo_48
+    AND DATE(pedido_data_emissao) BETWEEN @data_inicio AND @data_fim
+    AND cliente_codigo IS NOT NULL
 )
 SELECT
   CAST(v.pedido_filial AS INT64) filial,
@@ -33,36 +52,42 @@ SELECT
   EXTRACT(YEAR FROM DATE(v.pedido_data_emissao)) ano,
   COALESCE(c.tipo_estabelecimento, 0) tipo_estabelecimento,
   COALESCE(c.nome_tipo_estabelecimento, 'NÃO IDENTIFICADO') nome_tipo_estabelecimento,
-  CAST(v.equipe_codigo AS INT64) equipe,
+  COALESCE(CAST(v.equipe_codigo AS INT64), fu.equipe_padrao, 0) equipe,
   COALESCE(e.equipe_nome, 'NÃO IDENTIFICADO') nome_equipe,
-  CAST(v.produto_fornecedor_cod AS INT64) fornecedor,
+  COALESCE(CAST(v.produto_fornecedor_cod AS INT64), p.fornecedor_padrao, 0) fornecedor,
   COALESCE(f.nome_fornecedor, 'NÃO IDENTIFICADO') nome_fornecedor,
   CAST(v.produto_codigo AS INT64) produto,
   COALESCE(p.nome_produto, 'NÃO IDENTIFICADO') nome_produto,
   SUM(CAST(v.quantidade AS FLOAT64)) qtde,
   SUM(CAST(v.valor_total AS FLOAT64)) venda_liquida,
-  SUM(CAST(v.valor_total AS FLOAT64)
-      - COALESCE(CAST(v.valor_custo AS FLOAT64), 0) * CAST(v.quantidade AS FLOAT64)) margem_bruta
-FROM `dinho-dw.topsystem_silver.vendas` v
+  SUM(COALESCE(CAST(v.valor_custo AS FLOAT64), 0) * CAST(v.quantidade AS FLOAT64)) custo_total,
+  100 * (
+    SAFE_DIVIDE(
+      SUM(CAST(v.valor_total AS FLOAT64)),
+      NULLIF(SUM(COALESCE(CAST(v.valor_custo AS FLOAT64), 0) * CAST(v.quantidade AS FLOAT64)), 0)
+    ) - 1
+  ) margem_bruta
+FROM movimentos v
 LEFT JOIN filiais fi ON fi.filial = v.pedido_filial
 LEFT JOIN clientes c ON c.cliente_codigo = v.cliente_codigo
-LEFT JOIN equipes e ON e.equipe_codigo = v.equipe_codigo
-LEFT JOIN fornecedores f ON f.fornecedor = v.produto_fornecedor_cod
 LEFT JOIN produtos p ON p.produto = v.produto_codigo
-WHERE DATE(v.pedido_data_emissao) BETWEEN @data_inicio AND @data_fim
-  AND v.cliente_codigo IS NOT NULL
-  AND COALESCE(TRIM(v.tipo_pedido), '') <> '48'
+LEFT JOIN funcionarios fu ON fu.funcionario = v.funcionario_codigo
+LEFT JOIN equipes e ON e.equipe_codigo = COALESCE(v.equipe_codigo, fu.equipe_padrao)
+LEFT JOIN fornecedores f ON f.fornecedor = COALESCE(v.produto_fornecedor_cod, p.fornecedor_padrao)
 GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
 ORDER BY ano, mes, filial, equipe, fornecedor, produto
 """
 
 
-def consultar_relatorio(data_inicio: date, data_fim: date) -> pd.DataFrame:
+def consultar_relatorio(
+    data_inicio: date, data_fim: date, incluir_tipo_48: bool = False,
+) -> pd.DataFrame:
     """Executa uma consulta somente leitura e já agregada no BigQuery."""
     from google.cloud import bigquery
 
     config = bigquery.QueryJobConfig(query_parameters=[
         bigquery.ScalarQueryParameter("data_inicio", "DATE", data_inicio),
         bigquery.ScalarQueryParameter("data_fim", "DATE", data_fim),
+        bigquery.ScalarQueryParameter("incluir_tipo_48", "BOOL", incluir_tipo_48),
     ])
     return cliente_bigquery().query(SQL_RELATORIO, job_config=config).to_dataframe()

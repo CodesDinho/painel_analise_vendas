@@ -15,47 +15,48 @@ COLUNAS_EXCEL = {
     "equipe": "Equipe", "nome_equipe": "Nome Equipe",
     "fornecedor": "Fornecedor", "nome_fornecedor": "Nome Fornecedor",
     "produto": "Produto", "nome_produto": "Nome Produto", "qtde": "Qtde",
-    "venda_liquida": "Venda Líquida — PENDENTE CONFIRMAÇÃO",
-    "margem_bruta": "Margem Bruta — PENDENTE CONFIRMAÇÃO",
+    "venda_liquida": "Venda Líquida",
+    "margem_bruta": "Margem Bruta (%) — VALIDAR",
 }
 LARANJA = "F4B183"
+VERDE = "C6E0B4"
+CINZA = "D9E1F2"
+VERMELHO = "F4CCCC"
 
 
-def exportar_excel(dados: pd.DataFrame) -> bytes:
+def exportar_excel(dados: pd.DataFrame, incluir_tipo_48: bool = False) -> bytes:
     arquivo = BytesIO()
     detalhe = dados.rename(columns=COLUNAS_EXCEL)[list(COLUNAS_EXCEL.values())]
     resumo = calcular_resumo(dados)
     resumo_df = pd.DataFrame([
         {"Indicador": "Linhas detalhadas", "Valor": resumo["linhas"]},
         {"Indicador": "Quantidade", "Valor": resumo["quantidade"]},
-        {"Indicador": "Venda líquida — PENDENTE CONFIRMAÇÃO", "Valor": resumo["venda"]},
-        {"Indicador": "Margem bruta — PENDENTE CONFIRMAÇÃO", "Valor": resumo["margem"]},
-        {"Indicador": "Margem bruta % — PENDENTE CONFIRMAÇÃO", "Valor": resumo["margem_pct"]},
+        {"Indicador": "Venda líquida", "Valor": resumo["venda"]},
+        {"Indicador": "Margem bruta (%) — VALIDAR", "Valor": resumo["margem_pct"]},
+        {"Indicador": "Pedidos tipo 48", "Valor": "INCLUÍDOS" if incluir_tipo_48 else "EXCLUÍDOS"},
     ])
-    pendencias = pd.DataFrame([
-        {"Tema": "Venda Líquida", "Pergunta para homologação":
-         "valor_total já representa venda líquida contábil ou ainda exige descontos e impostos?",
-         "Tratamento provisório": "SUM(vendas.valor_total)"},
-        {"Tema": "Fórmula da Margem Bruta", "Pergunta para homologação":
-         "o custo correto é valor_custo × quantidade e a margem deve ser antes ou depois dos impostos?",
-         "Tratamento provisório": "SUM(valor_total - valor_custo × quantidade)"},
-        {"Tema": "Bonificações", "Pergunta para homologação":
-         "itens bonificados devem reduzir a margem, ser excluídos ou aparecer em indicador separado?",
-         "Tratamento provisório": "permanecem no resultado conforme valor e custo registrados"},
-        {"Tema": "Devoluções", "Pergunta para homologação":
-         "qual origem identifica devoluções e elas devem estornar venda, custo e quantidade?",
-         "Tratamento provisório": "não há tratamento adicional além do sinal gravado na fato"},
-        {"Tema": "Impostos", "Pergunta para homologação":
-         "quais tributos devem ser deduzidos: ICMS, ICMS-ST, PIS, COFINS, IPI ou outros?",
-         "Tratamento provisório": "nenhuma dedução adicional"},
-        {"Tema": "Pedidos tipo 48", "Pergunta para homologação":
-         "devem ser excluídos, incorporados à venda regular ou apresentados separadamente?",
-         "Tratamento provisório": "excluídos do relatório"},
+    regras = pd.DataFrame([
+        {"Status": "CONFIRMADO", "Tema": "Venda Líquida",
+         "Regra aplicada / observação": "Valor total é considerado venda líquida: SUM(valor_total)."},
+        {"Status": "VALIDAR", "Tema": "Margem Bruta",
+         "Regra aplicada / observação":
+         "Campo identificado: VIEW_ITEMPEDIDO.MARGEMBRUTA. Como todas as filiais ativas usam custo bruto, o agregado aplica ((SUM(venda) / SUM(custo total)) - 1) × 100. Validar uma amostra com o relatório TOP."},
+        {"Status": "A VERIFICAR", "Tema": "Bonificações",
+         "Regra aplicada / observação":
+         "Permanecem na base e reduzem a margem conforme valor e custo registrados; tratamento definitivo pendente."},
+        {"Status": "CONFIRMADO", "Tema": "Devoluções",
+         "Regra aplicada / observação": "Não entram no relatório; a origem considerada contém somente vendas."},
+        {"Status": "INFORMATIVO", "Tema": "Impostos",
+         "Regra aplicada / observação": "Não há dedução ou tratamento adicional de impostos."},
+        {"Status": "ALERTA" if incluir_tipo_48 else "CONFIRMADO", "Tema": "Pedidos tipo 48",
+         "Regra aplicada / observação":
+         ("Incluídos por escolha do usuário; podem afetar a leitura da margem."
+          if incluir_tipo_48 else "Excluídos por padrão para não afetar a margem real.")},
     ])
     with pd.ExcelWriter(arquivo, engine="openpyxl") as writer:
         resumo_df.to_excel(writer, sheet_name="Resumo", index=False)
         detalhe.to_excel(writer, sheet_name="Dados", index=False)
-        pendencias.to_excel(writer, sheet_name="Pendencias", index=False)
+        regras.to_excel(writer, sheet_name="Regras_e_escopo", index=False)
         for planilha in writer.book.worksheets:
             planilha.freeze_panes = "A2"
             planilha.auto_filter.ref = planilha.dimensions
@@ -67,16 +68,23 @@ def exportar_excel(dados: pd.DataFrame) -> bytes:
                 largura = min(max(len(str(c.value or "")) for c in coluna[:200]) + 2, 45)
                 planilha.column_dimensions[letra].width = max(largura, 12)
         ws_dados = writer.book["Dados"]
-        for titulo in ("Venda Líquida — PENDENTE CONFIRMAÇÃO", "Margem Bruta — PENDENTE CONFIRMAÇÃO"):
+        for titulo in ("Venda Líquida", "Margem Bruta (%) — VALIDAR"):
             indice = list(COLUNAS_EXCEL.values()).index(titulo) + 1
-            ws_dados.cell(1, indice).fill = PatternFill("solid", fgColor=LARANJA)
+            if titulo.startswith("Margem"):
+                ws_dados.cell(1, indice).fill = PatternFill("solid", fgColor=LARANJA)
             for coluna in ws_dados.iter_cols(min_col=indice, max_col=indice, min_row=2):
                 for celula in coluna:
-                    celula.number_format = 'R$ #,##0.00'
-        for planilha_nome in ("Resumo", "Pendencias"):
-            ws = writer.book[planilha_nome]
-            for linha in ws.iter_rows():
-                if planilha_nome == "Pendencias" or any("PENDENTE" in str(c.value or "").upper() for c in linha):
-                    for celula in linha:
-                        celula.fill = PatternFill("solid", fgColor=LARANJA)
+                    celula.number_format = '0.00"%"' if titulo.startswith("Margem") else 'R$ #,##0.00'
+        ws_resumo = writer.book["Resumo"]
+        for linha in ws_resumo.iter_rows():
+            if any("VALIDAR" in str(c.value or "").upper() for c in linha):
+                for celula in linha:
+                    celula.fill = PatternFill("solid", fgColor=LARANJA)
+        ws_regras = writer.book["Regras_e_escopo"]
+        cores = {"CONFIRMADO": VERDE, "A VERIFICAR": LARANJA, "VALIDAR": LARANJA,
+                 "INFORMATIVO": CINZA, "ALERTA": VERMELHO}
+        for linha in ws_regras.iter_rows(min_row=2):
+            cor = cores.get(str(linha[0].value), CINZA)
+            for celula in linha:
+                celula.fill = PatternFill("solid", fgColor=cor)
     return arquivo.getvalue()

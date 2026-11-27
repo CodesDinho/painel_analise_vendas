@@ -60,11 +60,13 @@ def calcular_resumo(dados: pd.DataFrame) -> dict[str, float | int]:
     if dados.empty:
         return {"linhas": 0, "quantidade": 0.0, "venda": 0.0, "margem": 0.0, "margem_pct": 0.0}
     venda = float(dados["venda_liquida"].sum())
-    margem = float(dados["margem_bruta"].sum())
+    custo = float(dados["custo_total"].sum()) if "custo_total" in dados else 0.0
+    margem_valor = venda - custo
+    margem_pct = ((venda / custo) - 1) * 100 if custo else 0.0
     return {
         "linhas": len(dados),
         "quantidade": float(dados["qtde"].sum()),
         "venda": venda,
-        "margem": margem,
-        "margem_pct": margem / venda if venda else 0.0,
+        "margem": margem_valor,
+        "margem_pct": margem_pct,
     }

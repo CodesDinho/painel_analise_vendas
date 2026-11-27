@@ -14,8 +14,8 @@ from .exportacoes import exportar_excel
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def _carregar(inicio: date, fim: date) -> pd.DataFrame:
-    return consultar_relatorio(inicio, fim)
+def _carregar(inicio: date, fim: date, incluir_tipo_48: bool) -> pd.DataFrame:
+    return consultar_relatorio(inicio, fim, incluir_tipo_48)
 
 
 def _moeda(valor: float) -> str:
@@ -93,18 +93,36 @@ def render_relatorio_vendas_diretoria() -> None:
     if erro:
         st.error(erro)
         return
-    with st.expander("🟠 Pendências de definição/confirmação da Controladoria", expanded=False):
+    incluir_tipo_48 = st.checkbox(
+        "Incluir pedidos tipo 48",
+        value=False,
+        key="rvd_incluir_tipo_48",
+        help="Desmarcado por padrão. A inclusão pode afetar a leitura da margem bruta.",
+    )
+    if incluir_tipo_48:
+        st.warning("Pedidos tipo 48 serão incluídos por escolha do usuário e podem afetar a margem.")
+    with st.expander("Regras e escopo aplicados ao relatório", expanded=False):
         st.markdown(
-            """
-            <div style="background:#F4B183;padding:10px;border-radius:6px;color:#3b2a12">
-            <b>Venda Líquida:</b> confirmar se <code>valor_total</code> já é líquido contábil.<br>
-            <b>Margem Bruta:</b> confirmar custo × quantidade e se a margem é antes ou após impostos.<br>
-            <b>Bonificações:</b> decidir se reduzem a margem, são excluídas ou exibidas separadamente.<br>
-            <b>Devoluções:</b> definir a origem e se estornam venda, custo e quantidade.<br>
-            <b>Impostos:</b> definir quais tributos serão deduzidos.<br>
-            <b>Pedidos tipo 48:</b> decidir entre excluir, incorporar ou apresentar separadamente.<br>
-            Tratamento provisório: venda = <code>SUM(valor_total)</code>; margem =
-            <code>SUM(valor_total - valor_custo × quantidade)</code>; tipo 48 excluído.
+            f"""
+            <div style="line-height:1.35">
+            <div style="background:#C6E0B4;padding:7px;border-radius:5px;margin-bottom:5px">
+            <b>Confirmado — Venda Líquida:</b> corresponde ao <code>valor_total</code>.</div>
+            <div style="background:#F4B183;padding:7px;border-radius:5px;margin-bottom:5px">
+            <b>Validar — Margem Bruta (%):</b> campo identificado em
+            <code>VIEW_ITEMPEDIDO.MARGEMBRUTA</code>. Todas as filiais ativas usam custo bruto;
+            o agregado aplica <code>((SUM(venda) / SUM(custo total)) - 1) × 100</code>.
+            Validar uma amostra com o relatório TOP.</div>
+            <div style="background:#F4B183;padding:7px;border-radius:5px;margin-bottom:5px">
+            <b>A verificar — Bonificações:</b> permanecem na base e reduzem a margem conforme
+            valor e custo registrados; o tratamento definitivo ainda precisa ser confirmado.</div>
+            <div style="background:#C6E0B4;padding:7px;border-radius:5px;margin-bottom:5px">
+            <b>Confirmado — Devoluções:</b> não entram; a origem considerada contém somente vendas.</div>
+            <div style="background:#D9E1F2;padding:7px;border-radius:5px;margin-bottom:5px">
+            <b>Informativo — Impostos:</b> não há dedução ou tratamento adicional.</div>
+            <div style="background:{'#F4CCCC' if incluir_tipo_48 else '#C6E0B4'};padding:7px;border-radius:5px">
+            <b>{'Alerta' if incluir_tipo_48 else 'Confirmado'} — Pedidos tipo 48:</b>
+            {'incluídos por escolha do usuário; podem afetar a margem.' if incluir_tipo_48 else 'excluídos por padrão para não afetar a margem real.'}
+            </div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -118,12 +136,12 @@ def render_relatorio_vendas_diretoria() -> None:
     if st.button("Gerar relatório autorizado", type="primary", key="rvd_gerar", disabled=not autorizado):
         try:
             with st.spinner("Consultando e agregando os dados no BigQuery..."):
-                st.session_state["rvd_dados"] = _carregar(inicio, fim)
-                st.session_state["rvd_periodo"] = (inicio, fim)
+                st.session_state["rvd_dados"] = _carregar(inicio, fim, incluir_tipo_48)
+                st.session_state["rvd_periodo"] = (inicio, fim, incluir_tipo_48)
         except Exception as exc:
             st.error(f"Não foi possível consultar o BigQuery: {exc}")
             return
-    if st.session_state.get("rvd_periodo") != (inicio, fim):
+    if st.session_state.get("rvd_periodo") != (inicio, fim, incluir_tipo_48):
         st.info("Selecione o período e clique em Gerar relatório.")
         return
     dados = st.session_state.get("rvd_dados")
@@ -157,8 +175,8 @@ def render_relatorio_vendas_diretoria() -> None:
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Linhas agregadas", f"{resumo['linhas']:,}".replace(",", "."))
     m2.metric("Quantidade", f"{resumo['quantidade']:,.0f}".replace(",", "."))
-    m3.metric("🟠 Venda líquida — pendente", _moeda(float(resumo["venda"])))
-    m4.metric("🟠 Margem bruta — pendente", _moeda(float(resumo["margem"])))
+    m3.metric("Venda líquida", _moeda(float(resumo["venda"])))
+    m4.metric("🟠 Margem bruta (%) — validar", f"{float(resumo['margem_pct']):,.2f}%".replace(",", "X").replace(".", ",").replace("X", "."))
     exibicao = dados.rename(columns={
         "filial": "Filial", "nome_filial": "Nome Filial", "mes": "Mês", "ano": "Ano",
         "tipo_estabelecimento": "Tipo Estabelecimento",
@@ -166,23 +184,26 @@ def render_relatorio_vendas_diretoria() -> None:
         "equipe": "Equipe", "nome_equipe": "Nome Equipe",
         "fornecedor": "Fornecedor", "nome_fornecedor": "Nome Fornecedor",
         "produto": "Produto", "nome_produto": "Nome Produto", "qtde": "Qtde",
-        "venda_liquida": "🟠 Venda Líquida — pendente",
-        "margem_bruta": "🟠 Margem Bruta — pendente",
+        "venda_liquida": "Venda Líquida",
+        "margem_bruta": "🟠 Margem Bruta (%) — validar",
     })
     st.dataframe(
         exibicao, hide_index=True, use_container_width=True,
         column_config={
             "Qtde": st.column_config.NumberColumn(format="%.0f"),
-            "🟠 Venda Líquida — pendente": st.column_config.NumberColumn(format="R$ %.2f"),
-            "🟠 Margem Bruta — pendente": st.column_config.NumberColumn(format="R$ %.2f"),
+            "Venda Líquida": st.column_config.NumberColumn(format="R$ %.2f"),
+            "🟠 Margem Bruta (%) — validar": st.column_config.NumberColumn(format="%.2f%%"),
         },
     )
     if st.button("Preparar exportação Excel", key="rvd_preparar_excel"):
         with st.spinner("Preparando o Excel..."):
-            excel = exportar_excel(dados)
+            excel = exportar_excel(dados, incluir_tipo_48)
         st.download_button(
             "Baixar Excel detalhado", data=excel,
-            file_name=f"relatorio_vendas_diretoria_{inicio:%Y%m%d}_{fim:%Y%m%d}.xlsx",
+            file_name=(
+                f"relatorio_vendas_diretoria_{inicio:%Y%m%d}_{fim:%Y%m%d}"
+                f"{'_com_tipo48' if incluir_tipo_48 else ''}.xlsx"
+            ),
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key="rvd_download",
         )
