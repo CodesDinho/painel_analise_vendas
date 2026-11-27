@@ -1,6 +1,6 @@
 services:
   painel-analise-vendas:
-    image: ${PAINEL_ANALISE_VENDAS_IMAGE:-ghcr.io/codesdinho/painel-analise-vendas:sha-0121dbba3e2359c775c873ce768788cccbadeba4}
+    image: ${PAINEL_ANALISE_VENDAS_IMAGE:-ghcr.io/codesdinho/painel-analise-vendas:sha-f6d434e8ce06a580607e86afa0694a9a9e80fa30}
     container_name: painel-analise-vendas
     restart: unless-stopped
     environment:
